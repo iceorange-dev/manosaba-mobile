@@ -1,7 +1,7 @@
 # Plan: what is left
 
-The open plan items, by what each needs (2026-11-24). An entry holds only what is left; what was done for an item is in
-[plan-done.md](plan-done.md) under the same number, the state of the port in [DEVELOPMENT.md](../DEVELOPMENT.md#where-the-work-stands-2026-11-24).
+The open plan items, by what each needs (2026-11-25). An entry holds only what is left; what was done for an item is in
+[plan-done.md](plan-done.md) under the same number, the state of the port in [DEVELOPMENT.md](../DEVELOPMENT.md#where-the-work-stands-2026-11-25).
 A new item takes the next number (332). How these two files are kept: [DEVELOPMENT.md § Testing](../DEVELOPMENT.md#testing).
 
 ## What Tears of the Kingdom left behind

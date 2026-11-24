@@ -77,11 +77,12 @@ The status below carries its date and is rewritten when the devices or the state
   modification times, so two edits within one second can skip a rebuild; copy a host binary elsewhere before a long test if you will rebuild
   the host meanwhile; Apple's Metal HUD crashes with `CAMetalDisplayLink` on iOS 18.6 (keep it off there).
 
-## Where the work stands (2026-11-24)
+## Where the work stands (2026-11-25)
 
 The repository is manosaba's alone, on iOS and Android, since 2026-11-24 (the user): Tears of the Kingdom, which it also ran until then, left
-with its game directory, and the tag `totk-last` is the last commit with it. Shared code that only that game reached is being removed part by
-part (plan items 328-330).
+with its game directory, and the tag `totk-last` is the last commit with it. The shared code only that game reached left in the batches that
+followed (196 to 209; plan item 328's record), and the game stays at 16:9 (the user, 2026-11-25). None of those batches has run on a phone
+yet; what is owed is in [docs/plan.md](docs/plan.md).
 
 What plays is in the README's status; what is left is [docs/plan.md](docs/plan.md). Supported systems: macOS 26 and iOS 26 / 27 (Metal 4); iOS
 18 and macOS 15 through the Metal 3 builds (`DM_IOS_M3=1`, `DM_MAC_M3=1`); iOS 17 is not supported. Devices: a Mac with an M5; the test phone,
