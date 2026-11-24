@@ -83,7 +83,6 @@ the wide picture) and `cloud/` the save sync. The headers stay in `host/`, which
 | `cloud/cloud.m`, `cloud.h`, `cloud/cloudsync.c` | iCloud save sync of the profile's `save_sync` files (Mac app and iOS; file-level core in `cloud/cloudsync.c`) |
 | `runtime/options.c` | Code options (`DM_OPTIONS`, or the product's `options.default`): changes the rewriter lists in `<module>.options.tsv`, applied before the code is sealed (Mac) |
 | `game/mods.c` | User mod folders (`DM_MODS`): each mod's RomFS (mod folders or the Atmosphère layout) as an overlay layer in front of the game's |
-| `diag/sead.c` | sead heaps (Tears of the Kingdom): every heap by class, the heaps and block holding an address (`DM_CRASH_HEAP`, the channel's `heap`), list watch (`DM_LIST_WATCH`) |
 | `front/cmdchan.c` | Live command channel (`DM_CMD`): keys, waits, screenshots, pass records, thread dump, memory snapshot, quit, while the game runs |
 | `runtime/crash.c` | Crash handler: guest backtrace, thread dump, watchdog (`DM_WATCH`), the frames-stopped dump (`DM_FREEZE_DUMP`), memory at registers on a crash (`DM_CRASH_MEM`) |
 | `diag/diag.c` | Diagnostics: probes (`DM_PROBE`, `DM_THROWLOG`), store watchpoint on all threads (`DM_WATCHPOINT`), boot timeline (`DM_BOOTPROF`), guest sampling (`DM_SAMPLE`), perf record |
@@ -115,7 +114,6 @@ the wide picture) and `cloud/` the save sync. The headers stay in `host/`, which
 | `DM_PHONE_HAPTICS=0` | iOS: no pulses on the phone's own haptics when no controller has haptics (plan item 67c) |
 | `DM_PROCON=0` | Mac: leave a Switch Pro Controller to GameController (no IMU or HD rumble over its HID device, `front/procon_mac.m`, plan item 67b) |
 | `DM_MODS=<dir>` | Mods: each entry's `romfs`, `contents/<program id>/romfs` or `atmosphere/contents/<program id>/romfs` (or loose files) in front of the RomFS, in name order, the first winning; names starting with `.` or `-` are off; code mods are not applied (iOS: `Documents/mods`) |
-| `DM_CRASH_HEAP=<reg>,...`, `DM_LIST_WATCH=[heap+]<addr>,...` | sead games: on a crash, the heaps and block holding each register's address; watch intrusive lists and dump the threads when one gets a null next (`diag/sead.c`) |
 | `DM_TEST_BG=<s>,<len>[;...]` | The iPhone's trip to the background and back at those times (focus, audio, guest clock, graphics), on the Mac too; `tools/lifecycle_check.py` judges the log |
 | `DM_LOG_TIME=1` | UTC milliseconds at the start of every log line (`logstamp.h`; on by default in the iOS app, where `DM_LOG_TIME=0` turns it off) |
 | `DM_PERF_LINE=1` | With a window: the game's frames per second, those reaching the screen and the GPU time per frame in its title, twice a second (`gfx/nvn/nvn_perfline.h`; the iOS app's "Show frame rate") |

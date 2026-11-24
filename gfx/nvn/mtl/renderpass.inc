@@ -4,7 +4,6 @@
 static int g_el_w, g_el_h, g_el_draws; static char g_el_key[12];
 static int g_nblk_wb; static void blk_writeback(void);
 static int enc_label_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_ENC_LABEL"); v = e && atoi(e); } return v; }
-static inline id<MTLTexture> fxp_sub(int stage, int tid, id<MTLTexture> t, uint64_t *rid);   // (plan item 63, with fxp_scene)
 static int g_fbx_nact, g_fbx_self; static inline void args_dirty_all(void);   // g_fbx_self: this draw samples what its pass draws (fbx_prepare)
 void rp_end(void) { if (g_fbx_nact) { g_fbx_nact = 0; args_dirty_all(); }   // the attachment copies of a draw stand in only for it (fbx_prepare)
     if (g_enc) {

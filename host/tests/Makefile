@@ -187,8 +187,6 @@ run: \
 	$(B)/t_rundiag_nokeep \
 	$(B)/t_rundiag_head \
 	$(B)/t_rundiag_noredact \
-	$(B)/t_sead \
-	$(B)/t_sead_broken \
 	$(B)/t_sleep \
 	$(B)/t_stickdir \
 	$(B)/t_stickdir_none \
@@ -658,7 +656,6 @@ run: \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_rundiag_noredact.log)" -ne 3 ]; then \
 	   cat $(B)/t_rundiag_noredact.log; echo "t_rundiag_noredact: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_rundiag_noredact: an unredacted report gives away paths, addresses and the user, as expected"
-	$(B)/t_sead 2>/dev/null
 	$(B)/t_codesig $(B)/t_codesig_true $(B)/t_codesig_false $(B)/t_codesig
 	env -u DM_DISPLAY_SIZE $(B)/t_mano_display 1920 1080 2>/dev/null
 	DM_DISPLAY_SIZE=2241x1261 $(B)/t_mano_display 2240 1260 2>/dev/null
@@ -687,10 +684,6 @@ run: \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_mxseen_never.log)" -ne 2 ]; then \
 	   cat $(B)/t_mxseen_never.log; echo "t_mxseen_never: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_mxseen_never: every report taken as new counts one twice, as expected"
-	@status=0; $(B)/t_sead_broken > $(B)/t_sead_broken.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "✗ an address past A's end" $(B)/t_sead_broken.log; then \
-	   cat $(B)/t_sead_broken.log; echo "t_sead_broken: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_sead_broken: a heap taken without checking it reaches the address is found past its end, as expected"
 	$(B)/t_sleep
 	$(B)/t_stickdir
 	@status=0; $(B)/t_stickdir_none > $(B)/t_stickdir_none.log 2>/dev/null || status=$$?; \
@@ -963,10 +956,6 @@ $(B)/t_mano_display_const: t_mano_display.c ../../games/manosaba/graphics.c ../d
 	clang -O1 -Wall -Werror -DDM_TEST_DISPLAY_CONST -I.. -o $@ t_mano_display.c
 $(B)/t_codesig_broken: t_codesig.c ../../ios/Sources/codesig.h | $(B)
 	clang -O1 -Wall -Werror -DDM_TEST_CODESIG_ANY_VALUE -o $@ t_codesig.c
-$(B)/t_sead: t_sead.c ../diag/sead.c ../dm.h ../runtime/plat_apple.c | $(B)
-	clang -O1 -Wall -Werror -I.. -o $@ t_sead.c ../runtime/plat_apple.c
-$(B)/t_sead_broken: t_sead.c ../diag/sead.c ../dm.h ../runtime/plat_apple.c | $(B)
-	clang -O1 -Wall -Werror -DDM_TEST_SEAD_BROKEN -I.. -o $@ t_sead.c ../runtime/plat_apple.c
 $(B)/t_sleep: t_sleep.c t_condvar_stub.c ../hle/hle_thread.c ../dm.h ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -I.. -o $@ t_sleep.c t_condvar_stub.c ../hle/hle_thread.c ../runtime/plat_apple.c
 $(B)/t_envfile: t_envfile.c ../envfile.h | $(B)

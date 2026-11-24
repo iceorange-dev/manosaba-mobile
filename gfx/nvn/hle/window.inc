@@ -124,7 +124,6 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
       if (rf && mtl_done_fence() < rf) { g_acq_early++; if (acq_gpu_wait()) { uint64_t w0 = now_ns(); mtl_wait(rf, 5000000000ull); g_acq_gpu_ns += now_ns() - w0; } }
 #endif
     }
-    if (s) atomic_store_explicit(&g_acq_sync_last, (const void *)s, memory_order_relaxed);
     // The acquire sync means "the display path no longer reads this texture": mtl_present_wait above waited for its last present to be committed, and
     // every later use of the texture is ordered after that present on the one Metal queue. Fencing it to the newest submission instead held the game's
     // CPU here until the whole previous frame had run, so the replay of a frame and the GPU work of the one before never overlapped (MacNativeGames,

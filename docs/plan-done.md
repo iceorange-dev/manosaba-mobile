@@ -93,7 +93,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 45 · not taken (b8) · an inline system counter read: about 1.5 ms of CPU a second in all in Tears of the Kingdom.
 - 46 · not taken (b9) · a smaller render area: no pass of either game draws only a top-left part.
 - 47 · b10 · a live command channel, `DM_CMD=<file>` (after MacNativeGames' `TOTK_INPUT_FILE`).
-- 48 · b11 · sead heaps and list watch (`host/diag/sead.c`, after MacNativeGames' TOTK_CRASH_HEAPFIND / HEAPWALK / LISTCHECK).
 - 49 · b12 · per-pass GPU time, `DM_NVN_PASSGPU=<tsv>` (after upstream 44a6770, MIT).
 - 50 · b13 · soak and fixed-scene measurement, `tools/soak.py` (after MacNativeGames' `mac_v143_soak.py` / `mac_v143_smoke.py`).
 - 51 · b13 · lifecycle and swipe-away tests (upstream `ios/tools/lifecycle.sh`, `logred.sh`). The home button and the app
@@ -150,13 +149,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   updates; private copies now follow every update.
 - 62l · b67 · a 60 fps iPhone build: `ios/run.sh` with `DM_PRODUCT=build/totk/product60 DM_OPTIONS=fps60,realtime,scene`;
   `DM_RENDER_HEIGHT` reaches Tears of the Kingdom.
-- 63 · b56 · the 2K canvas and MetalFX (after 52 and 95).
-- 63a · not taken · MetalFX's docked guard against the scene's content size (MacNativeGames ff092e3): our present-time MetalFX already
-  compares the content size with the size on screen.
-- 63b · b56 · the output size ("native 2K", after MacNativeGames' game_patches_v143.c patch_output_res, MIT, reviewed at 41e1e0c): code option
-  `output`, `DM_OUTPUT_RES`. On iOS the growth needs `DM_APP_POOL_ADD_MB` (281).
-- 63c · b56 · MetalFX in place of the game's own upscale pass (after MacNativeGames' mfxup_dock, MIT; `DM_UPSCALE=metalfx`).
-- 63d · b56 · MetalFX before the game's compose pass in handheld (after MacNativeGames' mfxup_draw, the "iOS handheld" case).
 - 64 · part (b54, b150) · for the next game: add-on content mounts (upstream PR #69), FenceSync, ClearBuffer and the other NVN functions
   (the 47 bayonetta3 has and we lack were split into 64a / 64a2), LDN, UE4 / CRIWARE notes (d2r-port-radar), `Downsample` as a resolve,
   VideoToolbox VP9. Left: 64a2, 64f, 64h2, 64j2, 64n2.
@@ -346,8 +338,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   default off. Left (the user): a turning camera over paved ground or decals.
 - 166 · b54 · a three-hour soak of the 60 fps product (MacNativeGames #57, #72, #74; upstream #90): the cliff save stopped after 47 min above
   the GPU budget, with DM_NVN_RT_HEAP=1 180.2 min: the heap is the default where it can be.
-- 167 · b53 · a teleport command (`DM_SURVEY=1`; MacNativeGames d164868 `world_survey.c`, MIT: its 1.4.3 addresses, actor layout and bounds
-  as data, written anew). Left: an overworld save for towns (the user).
 - 168 · not taken (b53) · no second BC4 encoder in Tears of the Kingdom's runs; a 2D-to-3D copy waits for a scene that shows it.
 - 169 · b53 · shader functional keys as a fallback (Touchable's internal/tools/shader_keys.py, MIT, written anew).
 - 170 · b53 · the game language from the app's own language setting (Touchable's switch_language / CFBundleLocalizations, MIT, written anew).
@@ -857,6 +847,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196) · Tears of the Kingdom's support removed (the user, 2026-11-24: the repository is manosaba's alone, on iOS and Android):
-  `games/totk`, `engines/bnsh`, their tests, the documents' sections and the batch's runs of it; the tag `totk-last` is the last commit with
-  it. Left: the shared code only it reached.
+- 328 · part (b196, b197) · Tears of the Kingdom's support removed (the user, 2026-11-24: the repository is manosaba's alone, on iOS and
+  Android): `games/totk`, `engines/bnsh`, their tests and documents (b196; the tag `totk-last` is the last commit with it); the command
+  channel's game commands, the frame-sync hook, sead's heap diagnostics, MetalFX for a game's own upscale pass (b197). Left: plan.md.

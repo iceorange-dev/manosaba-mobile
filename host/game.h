@@ -35,11 +35,6 @@ typedef struct {
     const char *const *save_sync; int save_sync_n;              // save paths (glob, relative to the save root) kept in iCloud sync
     const int *aoc; int aoc_n;                                  // owned add-on content indices reported by nn::aoc (none = no DLC)
     struct { const char *romfs, *sysfont, *product, *shader_map, *msl; } ws;   // workspace paths relative to DM_ROOT (game.json "workspace"), 0 = none
-    const char *upscale_fs; int upscale_color;  // the game's own upscale of the finished scene into its canvas (game.json upscale_pass: "fs" its fragment
-                                                //    shader key, "color" perceptual / linear / hdr, MetalFX's colour processing for it): with MetalFX
-                                                //    upscaling on, MetalFX writes the canvas in its place (gfx/nvn/nvn_mtl.m fxp_dock, plan item 63); 0 = none
-    const char *compose_fs; int compose_color;  // the draw that samples the scene at texture slot 0 into the canvas (game.json compose_pass, the same form):
-                                                //    with MetalFX upscaling on and the scene smaller, MetalFX upscales it first (fxp_scene); 0 = none
 } dm_game_profile;
 extern const dm_game_profile dm_game;
 
@@ -62,16 +57,10 @@ int dm_game_realtime_step(void);            // 1: the game's step follows the me
 // nn::oe::SetUserInactivityDetectionTimeExtended(on) from the guest return address ra (host/hle/hle_oe.c): the frame rate to hold until the next call,
 // 0 = none (weak default: 0). Tears of the Kingdom holds its pre-rendered movies at 30 (games/totk/movie_fps.c, plan item 130)
 int dm_game_inactivity_fps(int on, uint64_t ra);
-// A command channel line the host does not know (host/front/cmdchan.c): 0 not the game's, 1 the game's (run = 0: only checked when the line is read;
-// run = 1: run, the game logs the outcome). Tears of the Kingdom's survey (games/totk/survey.c, plan item 167)
-int dm_game_command(const char *line, int run);
 // The setting "Native" is on and the front end's window is now on a screen of w x h pixels (plan item 302: the iPhone Duo's window moves between its
 // two displays while the game runs). Any thread; weak default: nothing. A game that can change its resolution while it runs renders at that screen's
 // native size (host/native_size.h) from a later frame: manosaba (games/manosaba/graphics.c)
 void dm_game_native_screen(unsigned w, unsigned h);
-// On the game's thread right after it waited for its window image (nvnSyncWait on the sync of the last nvnWindowAcquireTexture, gfx/nvn/hle_nvn.c,
-// whose weak default this is): between two frames, where a game may act on its own objects
-void dm_game_frame_sync(void);
 
 // Services for game hooks (hle_fs.c)
 const char *dm_save_workdir(void);            // working directory of the transactional save (the copy the game reads and writes); NULL when none is mounted

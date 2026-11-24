@@ -22,7 +22,7 @@
 // "not responding" after 5 s instead of the process ending with a report (jhaizhou-ops/d2r-mobile 3ebb29bd, MIT; written anew here). So the first
 // part (the CRASH line, the registers, the frame-pointer backtrace) is put together in a buffer on the stack and written with write(2): no stdio, no
 // allocation, no dladdr, no lock; guest modules found by module_of (a table), other addresses on Linux through /proc/self/maps (open / read: library
-// and offset), raw elsewhere; frames read with dm_mem_read. The second part (dladdr's names, the IL2CPP classes, DM_CRASH_MEM / DM_CRASH_HEAP, the
+// and offset), raw elsewhere; frames read with dm_mem_read. The second part (dladdr's names, the IL2CPP classes, DM_CRASH_MEM, the
 // graphics note, the thread dump) needs stdio and locks: it runs under a 3 s alarm that ends the process (crash_deadman)
 typedef struct { char b[512]; int n; } cw_t;
 static void cw_flush(cw_t *w) {
@@ -224,20 +224,6 @@ static void crash_mem(ucontext_t *uc) {
         }
     }
 }
-// DM_CRASH_HEAP=reg[,reg...] (diagnostics): on a crash, the sead heap holding each register's address (x0..x30 or sp) and its use list (sead.c)
-__attribute__((weak)) void sead_heap_of(uint64_t addr) { fprintf(stderr, "[dm] DM_CRASH_HEAP: %#llx (no sead.c in this build)\n", (unsigned long long)addr); }   // sead.c
-static void crash_heap(ucontext_t *uc) {
-    const char *e = getenv("DM_CRASH_HEAP"); if (!e) return;
-    char spec[256]; strlcpy(spec, e, sizeof spec);
-    for (char *save, *t = strtok_r(spec, ",", &save); t; t = strtok_r(NULL, ",", &save)) {
-        char *end; int r;
-        if (!strcmp(t, "sp")) { fprintf(stderr, "[dm] heap of sp:\n"); sead_heap_of(UC_SP(uc)); }
-        else if (t[0] == 'x' && (r = (int)strtol(t + 1, &end, 10)) >= 0 && r <= 30 && end != t + 1 && !*end) {
-            fprintf(stderr, "[dm] heap of %s:\n", t);
-            sead_heap_of(r == 29 ? UC_FP(uc) : r == 30 ? UC_LR(uc) : UC_X(uc, r)); }
-        else fprintf(stderr, "[dm] DM_CRASH_HEAP: cannot parse \"%s\"\n", t);
-    }
-}
 // IL2CPP class names of the objects the registers point to (plan item 141, il2cpp_obj.h), for a Unity game only (dm_engine_il2cpp, game.c): in
 // another game a register can point at something that only looks like an object. Read with dm_mem_read: no second fault
 __attribute__((weak)) int dm_engine_il2cpp(void) { return 0; }   // game.c; the unit tests link crash.c without it
@@ -308,7 +294,6 @@ static void on_crash(int sig, siginfo_t *si, void *uc_) {
     fprintf(stderr, "\n");
     crash_objs((const uint64_t *)UC_XS(uc));
     crash_mem(uc);
-    crash_heap(uc);
     dm_backtrace(UC_FP(uc));
     mtl_crash_note();   // the graphics layer's last copy handed to the driver (plain values recorded beforehand; no Objective-C here)
     if (g_dump_hook) g_dump_hook();

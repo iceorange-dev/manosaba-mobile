@@ -23,9 +23,6 @@ NVN(nvnQueueFenceSync, void, NVNqueue *q, NVNsync *s, NVNsyncCondition c, int f)
 // A sync object that was never fenced: FAILED, as the SDK's NVNsyncWaitResult says (plan item 116; it was TIMEOUT_EXPIRED; dr3-mobile follows the
 // SDK too). Counted and logged: neither game does it (the prologue, the cliff save, manosaba: 0). A fenced one is released only after the GPU has
 // actually completed up to that fence value
-// The sync of the last nvnWindowAcquireTexture: a wait on it is the game's thread between two frames (dm_game_frame_sync, plan item 167)
-static const void *_Atomic g_acq_sync_last;
-__attribute__((weak)) void dm_game_frame_sync(void) {}
 static NVNsyncWaitResult sync_wait(const NVNsync *s, uint64_t timeout);
 // CPU waits on syncs (plan item 177, measured before LASRecomp's dc1d28f: a game that waits for its newest submission right after presenting it
 // never overlaps a frame's CPU work with the last one's GPU work): how many, how many on the newest submission still running, how long. The
@@ -42,7 +39,6 @@ NVN(nvnSyncWait, NVNsyncWaitResult, const NVNsync *s, uint64_t timeout) {
     if (r == NVN_SYNC_WAIT_RESULT_ALREADY_SIGNALED || r == NVN_SYNC_WAIT_RESULT_CONDITION_SATISFIED) mtl_wb_fence_done();   // what the GPU wrote is in memory now
     trace_end(TR_WAIT, tr, f0, (uint64_t)r);
     atomic_fetch_add(&g_sw_n, 1); if (newest) atomic_fetch_add(&g_sw_newest, 1); atomic_fetch_add(&g_sw_ns, now_ns() - t0);
-    if (s && s == atomic_load_explicit(&g_acq_sync_last, memory_order_relaxed)) dm_game_frame_sync();
     return r;
 }
 static NVNsyncWaitResult sync_wait(const NVNsync *s, uint64_t timeout) {

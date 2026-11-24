@@ -54,9 +54,6 @@ static int draw_admit(const p_draw *dw, const p_draw_idx *di, NvProg *__unsafe_u
     if (S.poly.cull == NVN_FACE_FRONT_AND_BACK) {   // points and lines have no face (nvn_obj.h): drawn
         if (nvn_prim_has_face(dw ? dw->prim : di->prim)) return 0;
         static int once; if (!once++) MLOG("cull FRONT_AND_BACK on primitive %d (no face): drawn (first case, pass %llu)", dw ? dw->prim : di->prim, g_stat_pass); }
-    if (g_up_fs[0][0] && !g_defer_replaying && fxp_dock(pr)) return 0;   // MetalFX wrote the canvas in this draw's place (plan item 63)
-    if (g_fxp.sub) fxp_sub_end();
-    if (g_up_fs[1][0] && !g_defer_replaying) fxp_scene(pr);   // MetalFX upscaled the scene this draw samples (plan item 63)
     return 1;
 }
 static id<MTLRenderCommandEncoder> draw_pass(__unsafe_unretained NvProg *pr, const p_draw *dw, const p_draw_idx *di) {

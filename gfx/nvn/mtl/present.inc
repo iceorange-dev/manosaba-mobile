@@ -11,7 +11,7 @@
 // frame, and (2) the present pass waits on the fence before its fragment stage. The older API (DM_NVN_M3) tracks these hazards itself.
 static _Atomic int g_upscale = -1;
 void mtl_upscale_set(int on) { int v = on != 0; if (atomic_exchange(&g_upscale, v) != v) MLOG("MetalFX upscaling %s", v ? "on" : "off"); }
-int upscale_on(void) {
+static int upscale_on(void) {
     int m = atomic_load(&g_upscale);
     if (m < 0) { const char *e = getenv("DM_UPSCALE"); int v = e && (!strcmp(e, "metalfx") || !strcmp(e, "1")), x = -1; atomic_compare_exchange_strong(&g_upscale, &x, v); m = atomic_load(&g_upscale); }
     return m;

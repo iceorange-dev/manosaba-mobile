@@ -227,7 +227,6 @@ static const char *cctx_snap(void);   // What is in this submission (printed int
 #include "mtl/store_index.inc"
 #include "mtl/tile_merge.inc"
 #include "mtl/u8_layers.inc"
-#include "mtl/metalfx_scene.inc"
 #include "mtl/draw.inc"
 #include "mtl/copies.inc"
 #include "mtl/exec.inc"

@@ -11,8 +11,8 @@ part below goes with its tests, its switches' rows and its records, after a mano
 parts (271, 220, 192, 320g, 320e, 318, 67) stay further down until their part goes.
 
 - 328 · shared code only that game reached, by its gate: the profile's `touch` pad, `virtual_cores`, `ios_mode`, `ios_pool_add_mb`,
-  `present_interval`, `window_unfocused`, `upscale_pass` / `compose_pass`; the hooks no game implements now; the code options; the lists
-  manosaba has none of (`fout.tsv`, `border_msl.txt`, `lodbias_msl.txt`); the frame step, the wide picture, the translation thread, sead's heaps.
+  `present_interval`, `window_unfocused`; the realtime-step hooks no game implements (the frame step, uncapped pacing, the fps hold); the
+  code options; the lists manosaba has none of (`fout.tsv`, `border_msl.txt`, `lodbias_msl.txt`); the wide picture; the translation thread.
 - 329 · what a longer manosaba run never executes (the Mac host's coverage; its prologue and trial 1's debate ran 44 % of the functions):
   audren, nfp, codec, motion, VP9 movies. A Mac run does not clear a path that depends on the GPU (`bcdec` is the phones').
 - 330 · the documents and comments still naming that game: the README's acknowledgements, docs/sources.md's lists, games/README.md's fields,

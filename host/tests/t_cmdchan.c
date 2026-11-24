@@ -22,12 +22,8 @@ void svc_thread_dump(void) { g_threads++; }
 long dm_memsnap_write(const char *path, long frame) { (void)path; (void)frame; return 0; }
 void hlecount_flush(void) { g_hlecount++; }
 void dm_host_shutdown(const char *why) { (void)why; g_quit++; }
-void sead_heaps_print(void) {}
-void sead_heap_of(uint64_t addr) { (void)addr; }
 static char g_pt[32]; int tp_selftest_now(const char *name) { if (strcmp(name, "look")) return 0; snprintf(g_pt, sizeof g_pt, "%s", name); return 1; }
 static char g_ps[64]; static void padshot(const char *path) { snprintf(g_ps, sizeof g_ps, "%s", path); }
-static int g_game_checked, g_game_ran; static char g_game_line[256];   // the game's commands (plan item 167): lines starting with "survey" are its
-int dm_game_command(const char *line, int run) { if (strncmp(line, "survey", 6)) return 0; if (run) { g_game_ran++; strlcpy(g_game_line, line, sizeof g_game_line); } else g_game_checked++; return 1; }
 
 static int parse_ok(const char *line, int kind, uint32_t mask, long v, const char *path) {
     dm_cmd c; const char *why; if (cmd_parse(line, &c, &why)) return 0;
@@ -58,16 +54,12 @@ int main(void) {
       if (ok && !cmd_parse("padtest look", &c, &why)) cmd_run(&c);
       dm_padshot_hook = padshot; if (ok && !cmd_parse("padshot pad.png", &c, &why)) cmd_run(&c);
       CHECK(ok && !strcmp(g_pt, "look") && !strcmp(g_ps, "pad.png"), "padtest <name> and padshot <path> parse, run and need their argument"); }
-    CHECK(parse_ok("heaps", CMD_HEAPS, 0, 0, NULL) && parse_ok("heap 0x1234", CMD_HEAP, 0, 0x1234, NULL) && parse_bad("heap", "address") && parse_bad("heap 0x12z", "address"), "heaps / heap <addr>");
     CHECK(parse_ok("threads", CMD_THREADS, 0, 0, NULL) && parse_ok("hlecount", CMD_HLECOUNT, 0, 0, NULL) && parse_ok("quit", CMD_QUIT, 0, 0, NULL), "threads / hlecount / quit");
     CHECK(parse_ok("", CMD_NONE, 0, 0, NULL) && parse_ok("   ", CMD_NONE, 0, 0, NULL) && parse_ok("# key A", CMD_NONE, 0, 0, NULL), "blank lines and comments do nothing");
     CHECK(parse_bad("key Q 10", "unknown key") && parse_bad("down", "key name") && parse_bad("key A 10 x", "key <name>"), "an unknown key, no key, an extra word");
     CHECK(parse_bad("key A 0", "1-5000") && parse_bad("key A 6000", "1-5000"), "key times outside 1-5000 ms");
     CHECK(parse_bad("wait 0", "1-100000") && parse_bad("wait x", "1-100000") && parse_bad("wait 3x", "1-100000") && parse_bad("passdump 601", "1-600"), "wait and passdump out of range or not numbers");
-    CHECK(parse_bad("shot", "path") && parse_bad("threads now", "no argument") && parse_bad("jump", "unknown command") && parse_bad("keyboard A", "unknown command"), "no path, an extra argument, unknown commands");
-    { dm_cmd c; const char *why; int ok = !cmd_parse("  survey pos here  ", &c, &why) && c.kind == CMD_GAME && !strcmp(c.path, "survey pos here") && g_game_checked == 1 && !g_game_ran;
-      if (ok) cmd_run(&c);
-      CHECK(ok && g_game_ran == 1 && !strcmp(g_game_line, "survey pos here"), "a line the game takes: checked when read, run as the game's, trimmed"); }
+    CHECK(parse_bad("shot", "path") && parse_bad("threads now", "no argument") && parse_bad("jump", "unknown command") && parse_bad("keyboard A", "unknown command") && parse_bad("survey pos here", "unknown command"), "no path, an extra argument, unknown commands");
 
     printf("loop, following a file:\n");
     char path[1024]; snprintf(path, sizeof path, "%s/t_cmdchan_%d.txt", getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp", getpid());

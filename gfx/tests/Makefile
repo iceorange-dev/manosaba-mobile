@@ -263,8 +263,6 @@ t_pools_kept: t_pools.m core_away_stub.c ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(G
 	clang $(CFLAGS) -fobjc-arc -DDM_TEST_POOL_KEEPS_CORE -o $@ t_pools.m core_away_stub.c $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
 t_blkunp: t_blkunp.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_blkunp.m $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
-t_fxp: t_fxp.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -o $@ t_fxp.m $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
 t_xlat: t_xlat.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_xlat.m $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
 t_mtlguard: t_mtlguard.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
@@ -426,7 +424,6 @@ run: \
 	t_pools \
 	t_pools_kept \
 	t_blkunp \
-	t_fxp \
 	t_xlat \
 	t_mtlguard \
 	t_fuse_check \
@@ -644,7 +641,6 @@ run: \
 	 else echo 't_pools_kept: pool setup keeping the core fails 1, as expected'; fi
 	MTL_DEBUG_LAYER=1 ./t_xlat
 	MTL_DEBUG_LAYER=1 ./t_blkunp
-	MTL_DEBUG_LAYER=1 ./t_fxp
 	DM_NVN_XLAT=1 ./t_rqueue   # the render-queue cases with the translation thread (plan item 61)
 	DM_NVN_XLAT=1 ./t_nvn > t_nvn_xlat.log 2>&1 && tail -1 t_nvn_xlat.log || { grep "✗" t_nvn_xlat.log; tail -1 t_nvn_xlat.log; exit 1; }
 	MTL_DEBUG_LAYER=1 ./t_mtlguard

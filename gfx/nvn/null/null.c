@@ -136,7 +136,6 @@ void mtl_sub_index(const uint64_t *h, int n) { (void)h; (void)n; }
 void mtl_set_tex_pool_n(int n) { (void)n; }
 void mtl_set_c2_layout(int tex, int ntex, int samp, int nsamp) { (void)tex; (void)ntex; (void)samp; (void)nsamp; }
 void mtl_set_depth_mode(int m) { (void)m; }
-void mtl_set_upscale_pass(const char *fs, int color, const char *compose_fs, int compose_color) { (void)fs; (void)color; (void)compose_fs; (void)compose_color; }
 void mtl_set_frame(uint64_t f) { (void)f; }
 void mtl_ts_factor(double f) { (void)f; }
 void mtl_read_texels(const tex_t *t, unsigned level, unsigned layer0, const NVNcopyRegion *r, uint8_t *dst, size_t row, size_t img) {

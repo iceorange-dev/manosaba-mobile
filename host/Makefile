@@ -50,7 +50,6 @@ SRC = \
 	runtime/romfs_parts.c \
 	runtime/romfs_validate.c \
 	diag/sdktest.c \
-	diag/sead.c \
 	diag/thermal.m \
 	runtime/thread.c \
 	front/touchpad.c \
