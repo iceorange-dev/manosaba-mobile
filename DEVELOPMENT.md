@@ -9,7 +9,7 @@ how far each was read, what was taken and what not).
 ## Restoring a working copy
 
 ```sh
-git clone https://github.com/iceorange-dev/manosaba-ios.git "manosaba ios" && cd "manosaba ios"   # work on main, which tracks origin/main
+git clone https://github.com/iceorange-dev/manosaba-mobile.git "manosaba ios" && cd "manosaba ios"   # work on main, which tracks origin/main
 git remote add upstream https://github.com/jhaizhou-ops/d2r-mobile.git      # fetch only, never push there
 ```
 

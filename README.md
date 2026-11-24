@@ -70,7 +70,7 @@ at 60 fps; what is left is plan item 301 in [docs/plan.md](docs/plan.md).
 
 ## Reporting problems
 
-Problems are welcome as [GitHub issues](https://github.com/iceorange-dev/manosaba-ios/issues/new/choose). Please say:
+Problems are welcome as [GitHub issues](https://github.com/iceorange-dev/manosaba-mobile/issues/new/choose). Please say:
 
 - the game's version, the device and its iOS, Android or macOS version;
 - the build: the commit, and iOS 26, iOS 18 (`DM_IOS_M3=1`) or Android;
