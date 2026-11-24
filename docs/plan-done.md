@@ -535,7 +535,7 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196-b200) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
-  `games/totk`, `engines/bnsh`, the hooks only it implemented with what they drove (the frame step, the frame-rate trials, uncapped pacing,
-  ProMotion's 120 Hz, the movies' hold), sead's heaps, MetalFX for a game's own upscale pass, four profile fields. Left: plan.md.
+- 328 · part (b196-b202) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
+  `games/totk`, `engines/bnsh`, the hooks only it implemented with what they drove (the frame step, uncapped pacing, ProMotion's 120 Hz, the
+  movies' hold), sead's heaps, eight profile fields, mods, cheats, pchtxt, the on-screen touch pad, nn::nfp and nn::codec. Left: plan.md.
 

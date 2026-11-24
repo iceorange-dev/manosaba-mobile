@@ -7,15 +7,17 @@ A new item takes the next number (332). How these two files are kept: [DEVELOPME
 ## What Tears of the Kingdom left behind
 
 The repository is manosaba's alone, on iOS and Android, since 2026-11-24 (the tag `totk-last`: the last commit with the other game). Each
-part below goes with its tests, its switches' rows and its records, after a manosaba run before and after it. The open items about these
-parts (271, 220, 320g, 320e, 318, 67) stay further down until their part goes.
+part below goes with its tests, its switches' rows and its records, after a manosaba run before and after it. Nothing removed since that day
+has run on a phone yet: an iPhone and an Android run come before the parts of 328 that touch threads, files or the draw's path.
 
-- 328 · shared code only that game reached, by its gate: the profile's `virtual_cores`; the code options; the RomFS overlay; the lists
-  manosaba has none of (`fout.tsv`, `border_msl.txt`, `lodbias_msl.txt`); the wide picture; the translation thread.
-- 329 · what a longer manosaba run never executes (the Mac host's coverage; its prologue and trial 1's debate ran 44 % of the functions):
-  audren, nfp, codec, motion, VP9 movies. A Mac run does not clear a path that depends on the GPU (`bcdec` is the phones').
-- 330 · the documents and comments still naming that game: the README's acknowledgements, docs/sources.md's lists, games/README.md's fields,
-  plan-done.md's records, a comment of `games/manosaba/rules.py` (with the next rewriter change: the file is in the stamp).
+- 328 · shared code only that game reached, by its gate, in this order: `virtual_cores` (`hle_thread.c`, the `*_BLOCKING` waits); the
+  translation thread; the RomFS overlay and RomFS parts; the code options (a new rewriter stamp: the product rebuilt, and the stale comment
+  of `games/manosaba/rules.py` with it); the wide picture and the widening (the settings' "Wide screen" switch goes with them).
+- 329 · takeovers the game's modules bind but no run has used: audren (4 of its 12 names), motion, friends, net, swkbd; VP9 movies
+  (`movie_webm.c`, libvpx) once the opening movie's codec is known; the lists manosaba has none of (`fout.tsv`, `border_msl.txt`,
+  `lodbias_msl.txt`). Kept until a longer run, and a phone where the path depends on the GPU, shows each unused.
+- 330 · the documents: PORTING.md rewritten for the one game; DEVELOPMENT.md and the READMEs' tables after 328; the open items below that
+  came from the other game's work (271, 220, 320g, 320e, 318, 67), each with its part.
 
 ## The iPhone Air (the test phone)
 
