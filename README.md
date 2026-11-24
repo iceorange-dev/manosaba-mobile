@@ -58,7 +58,7 @@ at 60 fps; what is left is plan item 301 in [docs/plan.md](docs/plan.md).
    ```sh
    export DM_ROOT=~/dm-work
    tools/build_product.sh && verify/regress.sh
-   # shaders: PORTING.md § 5
+   # shaders: PORTING.md § 3
    make -C host
    DM_SAVE=$DM_ROOT/run/save DM_TEMP=$DM_ROOT/run/temp DM_WINDOW=1 DM_AUDIO=1 host/dmhost
    ```

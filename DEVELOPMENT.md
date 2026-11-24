@@ -23,7 +23,7 @@ This working copy uses `DM_ROOT=<repo>/work` (git ignores `work/`).
 | System fonts | `work/data/switch/sysfont` | PORTING.md § 1 (nxdumptool, system data titles 0100000000000810–814) |
 | Console and SD card backups | `sd_backup_*/` | Only your own backup |
 | Product (rewritten modules) | `work/build/cache/dm/out/…` | `tools/build_product.sh && verify/regress.sh` |
-| Shaders, stage map | `work/build/…` (paths in `games/<id>/game.json`) | PORTING.md § 5 |
+| Shaders, stage map | `work/build/…` (paths in `games/<id>/game.json`) | PORTING.md § 3 |
 | App icon | `workspace.icon` | Your own 1024×1024 PNG of the game's icon |
 | Device saves | Device `Documents/save`; copies in `work/run/ios/*_save_*` | Files app → this app → `save`, or `devicectl device copy from` |
 | iOS signing settings | `ios/local.env` | From `ios/local.env.example`. Keep the bundle ID of the installed app (`xcrun devicectl device info apps --device <id>`): another bundle ID is another app with an empty data container |
