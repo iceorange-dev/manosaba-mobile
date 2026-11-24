@@ -64,9 +64,6 @@ are at the top of `patch_nso.py`.
   attaches a read-only callback with `gate_obs_set(id, fn)` (`host/dm.h`).
 - `PARAMS` — a constant built by a `movz`/`movk` pair is read from host thread slot `KPARAM0..3` instead; the game's C code sets the value
   through `g_keyparam[]` (`host/dm.h`).
-- `HOSTREFS` — `adrp xd` / `ldr st, [xn, #offset]` that address the module's host page, 16 KiB of zeros right after the key page that stays
-  writable; the game's C code fills it (`dm_host_page(module)`, `host/dm.h`) and the game's code reads it (Tears of the Kingdom's real-time frame
-  step). They become cuts; only a module with HOSTREFS gets the page (`HOST_PAGE_OFF` in its fixups header).
 
 Every rule is checked statically by `verify/structck.py` and dynamically by `verify/equiv.py`.
 

@@ -39,7 +39,6 @@ SRC = \
 	diag/memsnap.c \
 	diag/memstat.m \
 	media/movie_av.m \
-	runtime/options.c \
 	runtime/plat_apple.c \
 	front/procon_mac.m \
 	runtime/romfs_validate.c \

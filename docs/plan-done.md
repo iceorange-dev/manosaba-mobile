@@ -47,8 +47,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   switcher were for the phone (70).
 - 55 · not taken (b17) · moving the AudioUnit open (tomodachi-native d7f52e1 moved it after a 40 s stall): 22-26 ms in the games here.
 - 56 · not taken (b18) · cold uploaded textures (justr4mzi's mush8 fork aafef22, ideas only): about 3 % of Tears of the Kingdom's Metal memory.
-- 57 · b19 · code patches chosen at launch (`DM_OPTIONS`), one product for 30 and 60 fps (after tomodachi-native 0428c80, MIT). iOS (the
-  changed pages embedded, tomodachi-native afd88e9; item 62): see 136.
 - 60 · not taken (b21) · indirect draws and dispatches: no game calls one yet (396 logs); implemented when a game calls them (item 64).
 - 61 · b55 · NVN translation on a thread of its own (`DM_NVN_XLAT`; D2R Mobile b94670c and MacNativeGames' TOTK_ASYNC_REPLAY, MIT,
   written anew): the default for Tears of the Kingdom (prologue at 30 fps frame p95 46.3 → 33.9 ms), off for manosaba (p95 17.8 → 20.5 ms).
@@ -152,11 +150,9 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 135a · b67 · the thermal hold a switch, the player's choice (the user, 2026-10-22): "Hold 30 fps when hot" (`dm.hot_hold`).
 - 135b · b67 · the target paces the game too (`nvn_pace_hold`): at a 30 Hz link Tears of the Kingdom's 60 fps build had 149-151 of every
   300 presents discarded.
-- 136 · b39 · no option pages on iOS: `ios/tools/gen_embed.py` builds the code options into the embedded image. manosaba has no options.
 - 137 · b40 · vertex / pixel pairs noted at bind time in `<DM_SHDUMP>/pairs.tsv`; the union-interface library moved to 62g.
 - 138 · b41 · render targets of virtual pools in a heap (`DM_NVN_RT_HEAP=1`; the placement rule is totk-mobile's `nvn_texture_alias.inc`,
   Apache-2.0, written anew in `gfx/nvn/nvn_rtheap.h`).
-- 139 · b38 · code caves in the rewriter (`CAVES` in a game's rules.py; totk-mobile's routines appended to the patch area, written anew).
 - 140 · b42 · FIFO frame consumption for manosaba (`DM_PRESENT_CONSUME=newest|fifo`; after acnh-mobile c2af194, MIT, written anew).
 - 141 · b43 · IL2CPP class names in crash reports and memory snapshots (armyja's nxnative-aa-port reads the same fields, MIT, written anew).
 - 142 · b44 · swapchain acquires before the image's last GPU work finished, counted (after blade2-mobile 43e760e, MIT): 0 in both games;
@@ -187,8 +183,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   a variant of the stage; iOS reads the edge colour. Left: the user's checks (grass that stands up away from Link and can be cut).
 - 162 · b51 · one pixel shader bound to float and to integer targets: an integer-output variant per key of `games/totk/fout.tsv`, the 23 keys
   of ours in MacNativeGames' shared list (MIT, keys as data).
-- 163 · b52 · hair and cloth at 60 / 120 fps (MacNativeGames PR #79, merged, MIT; its sites, routine words and Unicorn table as data, the code
-  ours): CAVES behind option realtime. Left (the user): wind at 60 and 120 fps.
 - 165 · b53 · decals that read their own G-buffer pass (`DM_NVN_FBX=split`; MacNativeGames PR #67, open, MIT, written anew in `fbx_prepare`),
   default off. Left (the user): a turning camera over paved ground or decals.
 - 166 · b54 · a three-hour soak of the 60 fps product (MacNativeGames #57, #72, #74; upstream #90): the cliff save stopped after 47 min above
@@ -518,8 +512,8 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196-b206) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
+- 328 · part (b196-b207) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
   `games/totk`, `engines/bnsh`, the hooks only it implemented with what they drove (the frame step, uncapped pacing, ProMotion's 120 Hz, the
   movies' hold), sead's heaps, eight profile fields, mods, cheats, pchtxt, the on-screen touch pad, nn::nfp and nn::codec, VP8 / VP9 movies
   with libvpx (329; the game's clips are H.264 and AAC in MP4), the virtual cores, the translation thread, the
-  RomFS overlay and the RomFS parts. Left: plan.md.
+  RomFS overlay and the RomFS parts, the rewriter's code options, code caves and host page. Left: plan.md.

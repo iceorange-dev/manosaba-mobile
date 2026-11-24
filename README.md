@@ -114,7 +114,7 @@ port is also credited where it lives in the code.
   ([Tommy Lau](https://github.com/TommyLau), MIT; no longer on GitHub), ports built on d2r-mobile: host and replay fixes and the extraction tool's
   model.
 - **[tomodachi-native](https://github.com/kuosuko/tomodachi-native)** ([kuosuko](https://github.com/kuosuko), MIT), a fork of nxnative: the
-  duplicated colour slot, memory snapshots, a translator fix, attachment copies, code options.
+  duplicated colour slot, memory snapshots, a translator fix, attachment copies.
 - **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)** ([ly05010419](https://github.com/ly05010419), MIT), a port on the same
   lineage: the movie decoder's behaviour, uniform snapshots and much of the graphics layer.
 - **[LASRecomp](https://github.com/peiikai/LASRecomp)** ([Peiikai](https://github.com/peiikai), MIT), a static recompilation of Link's

@@ -120,7 +120,7 @@ What was ported from each project, by hand and credited where it lives in the co
   whole; a pool's buffer made only over writable pages.
 - **[tomodachi-native](https://github.com/kuosuko/tomodachi-native)** ([kuosuko](https://github.com/kuosuko), MIT), a fork of nxnative: the
   variant of the duplicated colour slot handling that keeps the slot the pass writes, the memory snapshots (`DM_MEMSNAP`), the FMZ multiply in
-  the shader translator, the attachment copies for draws that sample what their pass draws and code options applied at load.
+  the shader translator, and the attachment copies for draws that sample what their pass draws.
 - **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)** ([ly05010419](https://github.com/ly05010419), MIT), a Tears of the Kingdom
   port on the same lineage: which RomFS files hold the shaders, clears drawn as quads, BC render targets through an auxiliary
   texture, storage buffers addressed from uniform buffers, stale texture views, the 60 fps

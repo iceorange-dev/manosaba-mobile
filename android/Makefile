@@ -23,7 +23,7 @@ CFLAGS = -O1 -g -fPIC -Wall -Wno-unused-function -Wno-format -Wno-deprecated-dec
 	-DDM_REWRITER_STAMP=0x$(REWRITER_STAMP)ull -I$(H) -I../gfx/nvn/include -I$(GAMEDIR) -Icompat -include compat/darwin.h
 # The shared host sources Android takes: every service, the runtime, what changes the game, the portable diagnostics and front-end helpers
 HOST_SRC = $(sort $(wildcard $(H)/hle/hle_*.c)) $(H)/hle/hle.c \
-	$(addprefix $(H)/runtime/,crash.c hstack.c loader.c main.c options.c romfs_validate.c thread.c entry.S hstack.S) \
+	$(addprefix $(H)/runtime/,crash.c hstack.c loader.c main.c romfs_validate.c thread.c entry.S hstack.S) \
 	$(sort $(wildcard $(H)/game/*.c)) $(addprefix $(H)/diag/,diag.c memsnap.c sdktest.c) $(addprefix $(H)/front/,cmdchan.c) \
 	$(H)/cloud/cloudsync.c
 # The graphics layer without its Metal backend: the display and GPU driver glue takeovers (nn::vi, nv::), NVN's takeover and the replay core

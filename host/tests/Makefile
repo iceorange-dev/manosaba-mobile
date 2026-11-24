@@ -149,8 +149,6 @@ run: \
 	$(B)/t_rtld_ours \
 	$(B)/t_coolstart_onelook \
 	$(B)/t_guest_as_nolimit \
-	$(B)/t_options \
-	$(B)/t_options_nocheck \
 	$(B)/t_padmap \
 	$(B)/t_ns_text \
 	$(B)/t_ns_text_default \
@@ -522,11 +520,6 @@ run: \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_sleepstats_bodefault.log)" -ne 1 ]; then \
 	   cat $(B)/t_sleepstats_bodefault.log; echo "t_sleepstats_bodefault: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_sleepstats_bodefault: the back-off off unless asked fails its default, as expected"
-	TMPDIR="$(abspath $(B))" $(B)/t_options 2>/dev/null
-	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_options_nocheck > $(B)/t_options_nocheck.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "✗ c with a row" $(B)/t_options_nocheck.log; then \
-	   cat $(B)/t_options_nocheck.log; echo "t_options_nocheck: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_options_nocheck: an option written without checking its originals is half applied, as expected"
 	$(B)/t_padmap
 	$(B)/t_ns_text
 	@status=0; $(B)/t_ns_text_default > $(B)/t_ns_text_default.log 2>/dev/null || status=$$?; \
@@ -643,11 +636,11 @@ $(GEN): ../../games/$(GAME)/game.json ../../tools/gen_game.py   # (without these
 	$(MAKE) -C .. GAME=$(GAME) profile
 
 # Parsers of outside input under the undefined-behavior sanitizer (plan item 111; MacNativeGames runs its parsers so in CI; ASan hangs in dyld on
-# macOS 26): env.txt, the command channel, DM_KEYS scripts, mods, code options, RomFS checks, controller maps, the software keyboard's text, the run
+# macOS 26): env.txt, the command channel, DM_KEYS scripts, RomFS checks, controller maps, the software keyboard's text, the run
 # marker and the log stamps, each built again with UBSan (fatal) into build/ubsan; t_ubsan_on first shows the sanitizer is on and stops a run
 U = $(B)/ubsan
 UBSAN = -fsanitize=undefined -fno-sanitize-recover=undefined -g
-UBSAN_T = t_envfile t_cmdchan t_hid_script t_options t_romfs_validate t_padmap t_swkbd t_rundiag t_logstamp
+UBSAN_T = t_envfile t_cmdchan t_hid_script t_romfs_validate t_padmap t_swkbd t_rundiag t_logstamp
 run-ubsan: $(U)/t_ubsan_on $(U)/t_ubsan_on_ub $(addprefix $(U)/,$(UBSAN_T))
 	$(U)/t_ubsan_on
 	@status=0; $(U)/t_ubsan_on_ub > $(U)/t_ubsan_on_ub.log 2>&1 || status=$$?; \
@@ -657,7 +650,6 @@ run-ubsan: $(U)/t_ubsan_on $(U)/t_ubsan_on_ub $(addprefix $(U)/,$(UBSAN_T))
 	TMPDIR="$(abspath $(U))" $(U)/t_envfile
 	TMPDIR="$(abspath $(U))" $(U)/t_cmdchan 2>/dev/null
 	$(U)/t_hid_script 2>/dev/null
-	TMPDIR="$(abspath $(U))" $(U)/t_options 2>/dev/null
 	TMPDIR="$(abspath $(U))" $(U)/t_romfs_validate
 	$(U)/t_padmap
 	$(U)/t_swkbd
@@ -676,8 +668,6 @@ $(U)/t_cmdchan: t_cmdchan.c ../front/cmdchan.c ../dm.h | $(U)
 	clang -O1 -Wall -Werror $(UBSAN) -I.. -o $@ t_cmdchan.c
 $(U)/t_hid_script: t_hid_script.c ../hle/hle_hid.c ../hle.h ../dm.h ../dm_input.h ../front.h | $(U)
 	clang -O1 -Wno-unused-function $(UBSAN) -I.. -o $@ t_hid_script.c
-$(U)/t_options: t_options.c ../runtime/options.c ../dm.h | $(U)
-	clang -O1 -Wall -Werror $(UBSAN) -I.. -o $@ t_options.c
 $(U)/t_romfs_validate: t_romfs_validate.c ../runtime/romfs_validate.c | $(U)
 	clang -O1 -Wall -Wno-unused-function $(UBSAN) -I.. -o $@ t_romfs_validate.c ../runtime/romfs_validate.c
 $(U)/t_padmap: t_padmap.c ../gamepad_map.h ../dm_input.h | $(U)
@@ -753,17 +743,17 @@ $(B)/t_crash_bt: t_crash_bt.c t_altstack_stub.c ../runtime/crash.c ../dm.h ../ru
 	clang -O1 -Wall -Wno-unused-function -I.. -o $@ t_crash_bt.c t_altstack_stub.c ../runtime/crash.c ../runtime/plat_apple.c
 $(B)/t_crash_bt_unguarded: t_crash_bt.c t_altstack_stub.c ../runtime/crash.c ../dm.h ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wall -Wno-unused-function -DDM_TEST_BT_UNGUARDED -I.. -o $@ t_crash_bt.c t_altstack_stub.c ../runtime/crash.c ../runtime/plat_apple.c
-$(B)/t_gate_svc: t_gate_svc.c ../runtime/loader.c ../hle/hle.c ../runtime/options.c ../dm.h ../hle.h | $(B)
-	clang -O1 -Wno-deprecated-declarations -Wno-unused-function -I.. -Wl,-dead_strip -o $@ t_gate_svc.c ../hle/hle.c ../runtime/options.c
-$(B)/t_gate_svc_rel: t_gate_svc.c ../runtime/loader.c ../hle/hle.c ../runtime/options.c ../dm.h ../hle.h | $(B)
-	clang -O1 -Wno-deprecated-declarations -Wno-unused-function -DDM_TEST_GATE_ORIG_REL -I.. -Wl,-dead_strip -o $@ t_gate_svc.c ../hle/hle.c ../runtime/options.c
+$(B)/t_gate_svc: t_gate_svc.c ../runtime/loader.c ../hle/hle.c ../dm.h ../hle.h | $(B)
+	clang -O1 -Wno-deprecated-declarations -Wno-unused-function -I.. -Wl,-dead_strip -o $@ t_gate_svc.c ../hle/hle.c
+$(B)/t_gate_svc_rel: t_gate_svc.c ../runtime/loader.c ../hle/hle.c ../dm.h ../hle.h | $(B)
+	clang -O1 -Wno-deprecated-declarations -Wno-unused-function -DDM_TEST_GATE_ORIG_REL -I.. -Wl,-dead_strip -o $@ t_gate_svc.c ../hle/hle.c
 $(B)/t_mouse_route: t_mouse_route.c ../mouse_route.h | $(B)
 	clang -O1 -Wall -Werror -I.. -o $@ t_mouse_route.c
 $(B)/t_mouse_route_swallow: t_mouse_route.c ../mouse_route.h | $(B)
 	clang -O1 -Wall -Werror -DDM_TEST_MOUSE_SWALLOW_TITLE -I.. -o $@ t_mouse_route.c
-$(B)/t_relr: t_relr.c ../runtime/loader.c ../hle/hle.c ../runtime/options.c ../dm.h ../hle.h | $(B)
+$(B)/t_relr: t_relr.c ../runtime/loader.c ../hle/hle.c ../dm.h ../hle.h | $(B)
 	clang -O1 -Wno-deprecated-declarations -Wno-unused-function -I.. -Wl,-dead_strip -o $@ t_relr.c
-$(B)/t_relr_unchecked: t_relr.c ../runtime/loader.c ../hle/hle.c ../runtime/options.c ../dm.h ../hle.h | $(B)
+$(B)/t_relr_unchecked: t_relr.c ../runtime/loader.c ../hle/hle.c ../dm.h ../hle.h | $(B)
 	clang -O1 -Wno-deprecated-declarations -Wno-unused-function -DDM_TEST_RELR_UNCHECKED -I.. -Wl,-dead_strip -o $@ t_relr.c
 $(B)/t_tzrule: t_tzrule.c ../hle/hle_time.c ../hle.h ../dm.h | $(B)
 	clang -O1 -Wall -Wno-unused-function -I.. -o $@ t_tzrule.c -framework CoreFoundation
@@ -843,14 +833,14 @@ $(B)/t_gameslot: t_gameslot.c ../game/game_slot.c ../dm.h | $(B)
 	clang -O1 -Wall -Wno-unused-result -I.. -o $@ t_gameslot.c ../game/game_slot.c
 $(B)/t_ktrace: t_ktrace.c t_condvar_stub.c ../hle/hle_thread.c ../dm.h ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -I.. -o $@ t_ktrace.c t_condvar_stub.c ../hle/hle_thread.c ../runtime/plat_apple.c
-$(B)/t_loader_weak: t_loader_weak.c ../runtime/loader.c ../hle/hle.c ../runtime/options.c ../dm.h ../hle.h ../rodata_seal.h | $(B)
-	clang -O1 -Wno-deprecated-declarations -I.. -Wl,-dead_strip -o $@ t_loader_weak.c ../hle/hle.c ../runtime/options.c
-$(B)/t_rtld: t_rtld.c ../runtime/loader.c ../hle/hle.c ../runtime/options.c ../dm.h ../hle.h ../rodata_seal.h | $(B)
-	clang -O1 -Wno-deprecated-declarations -I.. -Wl,-dead_strip -o $@ t_rtld.c ../hle/hle.c ../runtime/options.c
-$(B)/t_rtld_ours: t_rtld.c ../runtime/loader.c ../hle/hle.c ../runtime/options.c ../dm.h ../hle.h ../rodata_seal.h | $(B)
-	clang -O1 -Wno-deprecated-declarations -I.. -Wl,-dead_strip -DDM_TEST_RTLD_DEFAULT_OURS -o $@ t_rtld.c ../hle/hle.c ../runtime/options.c
-$(B)/t_rtld_order: t_rtld.c ../runtime/loader.c ../hle/hle.c ../runtime/options.c ../dm.h ../hle.h ../rodata_seal.h | $(B)
-	clang -O1 -Wno-deprecated-declarations -I.. -Wl,-dead_strip -DDM_TEST_RTLD_LOAD_ORDER -o $@ t_rtld.c ../hle/hle.c ../runtime/options.c
+$(B)/t_loader_weak: t_loader_weak.c ../runtime/loader.c ../hle/hle.c ../dm.h ../hle.h ../rodata_seal.h | $(B)
+	clang -O1 -Wno-deprecated-declarations -I.. -Wl,-dead_strip -o $@ t_loader_weak.c ../hle/hle.c
+$(B)/t_rtld: t_rtld.c ../runtime/loader.c ../hle/hle.c ../dm.h ../hle.h ../rodata_seal.h | $(B)
+	clang -O1 -Wno-deprecated-declarations -I.. -Wl,-dead_strip -o $@ t_rtld.c ../hle/hle.c
+$(B)/t_rtld_ours: t_rtld.c ../runtime/loader.c ../hle/hle.c ../dm.h ../hle.h ../rodata_seal.h | $(B)
+	clang -O1 -Wno-deprecated-declarations -I.. -Wl,-dead_strip -DDM_TEST_RTLD_DEFAULT_OURS -o $@ t_rtld.c ../hle/hle.c
+$(B)/t_rtld_order: t_rtld.c ../runtime/loader.c ../hle/hle.c ../dm.h ../hle.h ../rodata_seal.h | $(B)
+	clang -O1 -Wno-deprecated-declarations -I.. -Wl,-dead_strip -DDM_TEST_RTLD_LOAD_ORDER -o $@ t_rtld.c ../hle/hle.c
 $(B)/t_thermal: t_thermal.m ../diag/thermal.m | $(B)
 	clang -O1 -Wall -fobjc-arc -o $@ t_thermal.m ../diag/thermal.m -framework Foundation
 $(B)/t_thermal_weak: t_thermal.m | $(B)
@@ -972,10 +962,6 @@ $(B)/t_movie: t_movie.c t_movie_clip.m ../hle/hle_movie.c ../runtime/hstack.S ..
 $(B)/t_movie_evcopy: t_movie.c t_movie_clip.m ../hle/hle_movie.c ../runtime/hstack.S ../runtime/hstack.c ../media/movie_av.m ../movie_av.h ../hle.h ../dm.h | $(B)
 	clang -O1 -Wall -Wno-unused-function -I.. -fobjc-arc -DDM_TEST_EVENTS_COPIED -o $@ t_movie.c t_movie_clip.m ../media/movie_av.m ../runtime/hstack.S ../runtime/hstack.c \
 		-framework Foundation -framework AVFoundation -framework CoreMedia -framework CoreVideo
-$(B)/t_options: t_options.c ../runtime/options.c ../dm.h | $(B)
-	clang -O1 -Wall -Werror -I.. -o $@ t_options.c
-$(B)/t_options_nocheck: t_options.c ../runtime/options.c ../dm.h | $(B)
-	clang -O1 -Wall -Werror -DDM_TEST_OPTIONS_NO_CHECK -I.. -o $@ t_options.c
 $(B)/t_net: t_net.c ../hle/hle_net.c ../hle.h ../dm.h | $(B)
 	clang -O1 -Wall -Wno-unused-function -I.. -o $@ t_net.c
 $(B)/t_net_bsd: t_net.c ../hle/hle_net.c ../hle.h ../dm.h | $(B)

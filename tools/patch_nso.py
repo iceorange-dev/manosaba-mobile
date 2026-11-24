@@ -11,7 +11,7 @@
 #   observation gates (OBS): one instruction at the entry is replaced with "enter the host observation callback → execute the original instruction → jump back", so diagnostics modify zero code at runtime; listed in <name>.obs.tsv
 #   parameter slots (PARAMS): a constant built by two instructions is read from a host thread slot instead
 # The key page only stores "actual key number × 8" at the end of the data segment, and patch code fetches thread slots indirectly through the key page: the loader may use any key number.
-# Output: <name>.patched.bin (key page and patch area appended after the image at PATCH_OFF), <name>.fixups.tsv (layout and key page index header), <name>.gates.tsv, <name>.sites.tsv, <name>.acq.tsv, <name>.cuts.tsv, <name>.options.tsv, <name>.obs.tsv, <name>.params.tsv
+# Output: <name>.patched.bin (key page and patch area appended after the image at PATCH_OFF), <name>.fixups.tsv (layout and key page index header), <name>.gates.tsv, <name>.sites.tsv, <name>.acq.tsv, <name>.cuts.tsv, <name>.obs.tsv, <name>.params.tsv
 import struct, re, sys, os
 from itertools import combinations
 import lz4.block
@@ -38,24 +38,6 @@ IMG.extend(bytes(0x4000))
 #   CUTS     {build ID: [(offset, original bytes hex, new bytes hex, reason)]}: byte replacements; the original bytes are asserted first
 #   OBS      {build ID: [(offset, gate number, original instruction word hex, reason)]}: observation gates at function entries (host: gate_obs_set)
 #   PARAMS   {build ID: [(offset A, word A hex, offset B, word B hex, register, key, reason)]}: parameter slots (see the PARAMS section below)
-#   HOSTREFS {build ID: [(offset, original instruction word hex, (kind, ...), reason)]}: instructions that address the host page, a 16 KiB page of
-#            zeros right after the key page that stays writable and that the host fills (dm_host_page): ('adrp', d) = adrp xd, host page;
-#            ('ldr_s', t, n, byte offset) = ldr st, [xn, #byte offset]. They become cuts (asserted, listed in cuts.tsv, checked as cuts); a module with
-#            HOSTREFS gets the page and HOST_PAGE_OFF in its fixups header, the others keep their layout
-#   OPTIONS  {build ID: {option name: [entries as in CUTS, or as in HOSTREFS when the third item is a (kind, ...) form]}}: changes the host applies
-#            at load to the options DM_OPTIONS or the product's options.default names (host/runtime/loader.c, plan item 57: one product for 30 and 60 fps).
-#            Asserted against the original here but not written into the image; listed in <name>.options.tsv with their final bytes. They must not
-#            overlap a cut and must stay outside the rewritten code (asserted after the rewrite: the host writes them where the original still is).
-#            A host page form gives the module the page as HOSTREFS does
-#   CAVES    {build ID: [(offset, original instruction word hex, routine, reason[, option])]}: code caves (plan item 139; totk-mobile's routines appended to
-#            the patch area, written anew): the word at offset (asserted) becomes `b <routine>`, the routine is emitted into the patch area and ends
-#            with `b <offset + 4>` unless its last form already leaves. Routine forms: an int (an instruction word, which must not be PC-relative: it
-#            no longer sits where it was assembled), ('orig',) (the replaced word, same rule), ('adrp_host', d) (adrp xd, host page: the module gets
-#            the page as HOSTREFS gives it), ('b', target) / ('bl', target) (to a text address). A routine may borrow registers through the red zone
-#            (stur / ldur below sp) as the rewrite blocks do. Listed in <name>.caves.tsv with the words emitted; structck checks them word by word and
-#            their exits, fnfuzz leaves their functions out (an intended change of behaviour, checked by the game's own tests). With an option
-#            name (plan item 163) the routine is emitted all the same but the word at offset stays: the branch to the routine is a row of that
-#            option in <name>.options.tsv, so the host writes it at load only when the option is on (and checks the original word first)
 # A module whose build ID has no entry gets the generic rewrite only.
 def rules_path():
     path = os.environ.get('DM_RULES')
@@ -63,41 +45,15 @@ def rules_path():
     return path
 def load_rules():
     path = rules_path()
-    if not path: return {}, {}, {}, {}, {}, {}
+    if not path: return {}, {}, {}
     import importlib.util
     sys.dont_write_bytecode = True   # no __pycache__ next to the game's rules
     spec = importlib.util.spec_from_file_location('game_rules', path); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-    return getattr(m, 'CUTS', {}), getattr(m, 'OBS', {}), getattr(m, 'PARAMS', {}), getattr(m, 'HOSTREFS', {}), getattr(m, 'OPTIONS', {}), getattr(m, 'CAVES', {})
-CUTS, OBS, PARAMS, HOSTREFS, OPTIONS, CAVES = load_rules()
+    for gone in ('HOSTREFS', 'OPTIONS', 'CAVES'): assert not hasattr(m, gone), f'{path}: the rule kind {gone} is no longer part of this rewriter'
+    return getattr(m, 'CUTS', {}), getattr(m, 'OBS', {}), getattr(m, 'PARAMS', {})
+CUTS, OBS, PARAMS = load_rules()
 BUILD_ID = d[0x40:0x50].hex()
 cuts = list(CUTS.get(BUILD_ID, []))
-hostrefs = HOSTREFS.get(BUILD_ID, [])
-options = OPTIONS.get(BUILD_ID, {})
-caves = CAVES.get(BUILD_ID, [])
-HOST_PAGE_OFF = 0
-def hostref_word(off, ow, form):   # the instruction a host page reference becomes (the original word asserted)
-    w = struct.unpack_from('<I', IMG, off)[0]
-    assert f'{w:08x}' == ow, f'host page reference {off:#x}: original instruction differs ({w:08x})'
-    if form[0] == 'adrp':
-        imm = (HOST_PAGE_OFF >> 12) - (off >> 12); assert -(1 << 20) <= imm < (1 << 20)
-        return w, 0x90000000 | ((imm & 3) << 29) | (((imm >> 2) & 0x7FFFF) << 5) | form[1]
-    if form[0] == 'ldr_s':
-        t, n, bo = form[1:]; assert bo % 4 == 0 and 0 <= bo < 0x4000
-        return w, 0xBD400000 | ((bo // 4) << 10) | (n << 5) | t
-    raise AssertionError(f'host page reference {off:#x}: unknown form {form}')
-if hostrefs or any(isinstance(e[2], tuple) for rows in options.values() for e in rows) or any(isinstance(f, tuple) and f[0] == 'adrp_host' for c in caves for f in c[2]):
-    HOST_PAGE_OFF = KEY_PAGE_OFF + 0x4000
-    IMG.extend(bytes(max(0, HOST_PAGE_OFF + 0x4000 - len(IMG))))
-    for off, ow, form, why in hostrefs:
-        w, nw = hostref_word(off, ow, form)
-        cuts.append((off, struct.pack('<I', w).hex(), struct.pack('<I', nw).hex(), f'{why} [host page +{HOST_PAGE_OFF:#x}]'))
-opts = []   # (option, offset, original bytes hex, new bytes hex, reason): checked against the original, not written
-for name, rows in options.items():
-    for off, o, n, why in rows:
-        if isinstance(n, tuple): w, nw = hostref_word(off, o, n); ob, nb = struct.pack('<I', w), struct.pack('<I', nw); why = f'{why} [host page +{HOST_PAGE_OFF:#x}]'
-        else: ob, nb = bytes.fromhex(o), bytes.fromhex(n); assert len(ob) == len(nb) and IMG[off:off + len(ob)] == ob, f'option {name} {off:#x}: original bytes differ ({bytes(IMG[off:off + len(ob)]).hex()})'
-        assert not any(c[0] < off + len(ob) and off < c[0] + len(bytes.fromhex(c[1])) for c in cuts), f'option {name} {off:#x} overlaps a cut'
-        opts.append((name, off, ob.hex(), nb.hex(), why))
 PATCH_OFF = (len(IMG) + 0xFFFF) & ~0xFFFF
 for off, ob, nb, why in cuts:
     ob, nb = bytes.fromhex(ob), bytes.fromhex(nb)
@@ -668,10 +624,10 @@ kinds = {}
 # crashed until this; Tears of the Kingdom's walking speed the same). Every LDXR / LDXP / LDXRB / LDXRH (o2 = 0, L = 1, o0 = 0) the disassembler
 # confirms gets bit 15 (o0): LDAXR / LDAXP / LDAXRB / LDAXRH, in place, before the sites are found (an exclusive section copied to the patch area
 # copies the acquire form). The addresses go to <name>.acq.tsv (verify/structck.py ⑭ checks them against llvm-objdump's reading; equiv.py's deexcl
-# and fnfuzz.py's single-threaded runs read both forms alike). The words of cuts and options stay as the rules give them (their original bytes are
-# checked again later, and by the host for options)
+# and fnfuzz.py's single-threaded runs read both forms alike). The words of cuts stay as the rules give them (their original bytes are
+# checked again later)
 ACQ_MASK, ACQ_VAL, ACQ_PLAIN = 0x3FC08000, 0x08400000, ('ldxr', 'ldxp', 'ldxrb', 'ldxrh')
-acq_keep = {(c[0] + k) & ~3 for c in cuts for k in range(len(bytes.fromhex(c[1])))} | {(o[1] + k) & ~3 for o in opts for k in range(len(bytes.fromhex(o[2])))}
+acq_keep = {(c[0] + k) & ~3 for c in cuts for k in range(len(bytes.fromhex(c[1])))}
 acq = []
 for o in range(0, TEXT_END, 4):
     w = struct.unpack_from('<I', IMG, o)[0]
@@ -961,46 +917,8 @@ for oa, wa, ob_, wb, r, key, why in params:
     emit(STR_PRE(tmp, 31, -16) if NRZ else STUR(tmp, 31, -16)); emit_tp(r); emit_slot_addr(r, tmp, key); emit(LDRX(r, r)); emit(LDR_POST(tmp, 31, 16) if NRZ else LDUR(tmp, 31, -16)); emit(B(here(), oa + 4))
     struct.pack_into('<I', IMG, oa, B(oa, start)); struct.pack_into('<I', IMG, ob_, NOP); stat('param')
 
-# ---- Code caves (CAVES, see the rules section at the top): one instruction becomes a branch to a routine in the patch area ----
-PCREL = ('adr', 'adrp', 'b', 'bl', 'cbz', 'cbnz', 'tbz', 'tbnz')
-def cave_word_ok(ins):   # a word that may run in the patch area as it is: not PC-relative, nothing the rewrite would have to change
-    m = ins.mnemonic
-    return not (m in PCREL or m.startswith('b.') or (m.startswith('ldr') or m == 'prfm') and '[' not in ins.op_str or has18(ins)
-                or m in ('svc', 'mrs', 'msr', 'br', 'blr', 'ret'))
-busy_cave = set(kinds) | done | {o for o, *_ in obs} | {o for row in params for o in (row[0], row[2])}
-busy_cave |= {(c[0] + k) & ~3 for c in cuts for k in range(len(bytes.fromhex(c[1])))} | {(o[1] + k) & ~3 for o in opts for k in range(len(bytes.fromhex(o[2])))}
-cave_rows = []
-for off, ow, routine, why, *gate in caves:
-    w = struct.unpack_from('<I', IMG, off)[0]; gate = gate[0] if gate else ''
-    assert not gate or re.fullmatch(r'[A-Za-z0-9_]{1,31}', gate), f'code cave {off:#x}: option name {gate!r}'
-    assert f'{w:08x}' == ow, f'code cave {off:#x}: original instruction differs ({w:08x})'
-    assert off < TEXT_END and off % 4 == 0 and off not in busy_cave and why.strip(), f'code cave {off:#x}: outside text, on another change, or no reason'
-    busy_cave.add(off)
-    start = here(); exits, left = set(), False
-    for f in routine:
-        if isinstance(f, int) or f == ('orig',):
-            x = w if f == ('orig',) else f; ins = dis(x, here())
-            assert cave_word_ok(ins), f'code cave {off:#x}: {ins.mnemonic} {ins.op_str} cannot run in the patch area (PC-relative, x18, svc, a system register or a branch: use a form)'
-            emit(x); left = False
-            if NRZ and re.search(r'\[sp, #-', ins.op_str) and off not in below_sp: below_sp.append(off); stat('below_sp')   # a routine that keeps registers below sp
-        elif f[0] == 'adrp_host': emit(ADRP(f[1], here(), HOST_PAGE_OFF)); left = False
-        elif f[0] in ('b', 'bl'):
-            assert 0 <= f[1] < TEXT_END and f[1] % 4 == 0, f'code cave {off:#x}: {f[0]} to {f[1]:#x} outside text'
-            if f[0] == 'b': emit(B(here(), f[1])); exits.add(f[1]); left = True
-            else: emit(BL(here(), f[1])); left = False
-        else: raise AssertionError(f'code cave {off:#x}: unknown form {f}')
-    if not left and not os.environ.get('DM_TEST_CAVE_NO_BACK'):   # (the env: negative control of t_rewriter_synth only)
-        emit(B(here(), off + 4)); exits.add(off + 4)
-    if gate and not os.environ.get('DM_TEST_CAVE_GATE_WRITTEN'):   # (the env: negative control of t_rewriter_synth only: the branch written as well)
-        opts.append((gate, off, struct.pack('<I', w).hex(), struct.pack('<I', B(off, start)).hex(), f'{why} [code cave: b {start:#x}]'))
-    else: put_branch(off, start)
-    stat('cave')
-    cave_rows.append((off, ow, start, bytes(patch[start - PATCH_OFF:here() - PATCH_OFF]), sorted(exits), gate, why))
-
 os.makedirs(outdir, exist_ok=True)
 P = lambda ext: os.path.join(outdir, f'{NAME}.{ext}')
-for name, off, ob, nb, why in opts:   # the host writes an option where the original still is: the rewrite must not have touched it
-    assert IMG[off:off + len(ob) // 2].hex() == ob, f'option {name} {off:#x}: rewritten here ({IMG[off:off + len(ob) // 2].hex()}), cannot be applied at load'
 open(P('patched.bin'), 'wb').write(IMG + bytearray(PATCH_OFF - len(IMG)) + patch)
 import hashlib
 with open(os.path.join(outdir, 'build_src.sha256'), 'w') as f:
@@ -1008,7 +926,6 @@ with open(os.path.join(outdir, 'build_src.sha256'), 'w') as f:
 with open(P('fixups.tsv'), 'w') as f:
     f.write(f'# PATCH_OFF\t{PATCH_OFF:#x}\n# KEY_PAGE_OFF\t{KEY_PAGE_OFF:#x}\n# KEY_PAGE_SIZE\t0x4000\n# TEXT_END\t{TEXT_END:#x}\n# RO_OFF\t{RO_OFF:#x}\n# DATA_OFF\t{DATA_OFF:#x}\n')
     if TARGET == 'android': f.write(f'# TARGET_ANDROID\t1\n# NRZ\t{int(NRZ)}\n')   # (the apple header is as before)
-    if HOST_PAGE_OFF: f.write(f'# HOST_PAGE_OFF\t{HOST_PAGE_OFF:#x}\n')
     for k in KEY_INDEX: f.write(f'# KEY_{k}_IDX\t{KEY_INDEX[k]}\n')
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import rewriter_stamp   # this rewriter + the rules: the host compares it (loader.c)
     f.write(f'# REWRITER\t0x{rewriter_stamp.stamp(rules_path())}\n')
@@ -1028,16 +945,9 @@ with open(P('acq.tsv'), 'w') as f:   # load-exclusives turned into acquire loads
 with open(P('cuts.tsv'), 'w') as f:
     f.write(f'# BUILD_ID\t{BUILD_ID}\n')
     for off, ob, nb, why in cuts: f.write(f'{off:#x}\t{ob}\t{nb}\t{why}\n')   # columns: offset, original bytes, new bytes, reason
-with open(P('options.tsv'), 'w') as f:   # columns: option, offset, original bytes, new bytes, reason (host/runtime/loader.c)
-    f.write(f'# BUILD_ID\t{BUILD_ID}\n')
-    for name, off, ob, nb, why in opts: f.write(f'{name}\t{off:#x}\t{ob}\t{nb}\t{why}\n')
 with open(P('params.tsv'), 'w') as f:
     f.write(f'# BUILD_ID\t{BUILD_ID}\n')
     for oa, wa, ob_, wb, r, key, why in params: f.write(f'{oa:#x}\t{ob_:#x}\tx{r}\t{key}\t{why}\n')
-with open(P('caves.tsv'), 'w') as f:   # columns: offset, original word, routine start, its words, its exits back to text, option (empty: always), reason (structck ⑬)
-    f.write(f'# BUILD_ID\t{BUILD_ID}\n')
-    for off, ow, start, wb, ex, gate, why in cave_rows:
-        f.write(f'{off:#x}\t{ow}\t{start:#x}\t' + ' '.join(f'{v:08x}' for v in struct.unpack(f'<{len(wb) // 4}I', wb)) + '\t' + ','.join(f'{e:#x}' for e in ex) + f'\t{gate}\t{why}\n')
 with open(P('obs.tsv'), 'w') as f:
     f.write(f'# BUILD_ID\t{BUILD_ID}\n')
     for off, oid, ow, why in obs: f.write(f'{off:#x}\t{oid}\t{ow}\t{why}\n')
@@ -1045,4 +955,4 @@ if TARGET == 'android':   # the sites whose blocks still keep registers below sp
     with open(P('belowsp.tsv'), 'w') as f:
         f.write(f'# BUILD_ID\t{BUILD_ID}\n')
         for a in sorted(below_sp): f.write(f'{a:#x}\n')
-print(NAME, stats, 'acquire', len(acq), 'cuts', len(cuts), 'options', len(opts), 'caves', len(cave_rows), 'obs', len(obs), 'patch', len(patch), 'PATCH_OFF', hex(PATCH_OFF), 'slot_refs', len(fix), 'gates', len(gates))
+print(NAME, stats, 'acquire', len(acq), 'cuts', len(cuts), 'obs', len(obs), 'patch', len(patch), 'PATCH_OFF', hex(PATCH_OFF), 'slot_refs', len(fix), 'gates', len(gates))
