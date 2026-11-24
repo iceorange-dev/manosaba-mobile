@@ -80,7 +80,7 @@ needs `DM_BUNDLE_ID` but no team. A signing tool (AltStore, SideStore, Sideloadl
 signer's profile decides the entitlements. AltStore reads the entitlements in the app's signature (AltSign `ALTApplication.entitlementsString`)
 to decide which App ID features to turn on: without the ad hoc signature it turned on none, and the app kept the default memory limit
 (LNPANDY/nxnative-romfs-archive c3bccb5: about 3,375 MB on a 12 GB iPhone). The packaging line gives the IPA's size, with a note above 4 GiB:
-iOS refused a 16.6 GB IPA that held a whole Tears of the Kingdom RomFS (LNPANDY 13d9191). Without iCloud
+iOS refused a 16.6 GB IPA (LNPANDY 13d9191). Without iCloud
 entitlements there is no save sync (`host/cloud/cloud.m` asks for the default container at run time); everything else works as in a free-account
 build. Tools that change the bundle ID are fine: nothing in the app depends on it. Tried on 2026-10-16 with LCSign on an iPad Pro (iOS 18.5):
 it signed with every entitlement of its profile (increased memory limit included, `get-task-allow` false), and the app ran.

@@ -64,7 +64,6 @@ the wide picture) and `cloud/` the save sync. The headers stay in `host/`, which
 | `hle/hle_fs.c` | `nn::fs`: mounts map to host directories (RomFS, save, temporary storage, RAM disk); transactional saves with atomic commit |
 | `hle/hle_hid.c`, `hle/hle_touch.c`, `dm_input.h` | `nn::hid` controllers and touchscreen, built from what the front end publishes; scripted input `DM_KEYS` |
 | `hle/hle_audio.c` | `nn::audio` AudioOut on Core Audio |
-| `hle/hle_codec.c` | `nn::codec` hardware Opus decoder |
 | `hle/hle_movie.c`, `media/movie_av.m`, `movie_av.h` | The Nintendo movie library (`movie::` in subsdk0, used by Unity's VideoPlayer) on AVFoundation (Android: `android/movie_android.c`, AMediaExtractor / AMediaCodec) |
 | `hle/hle_oe.c`, `hle/hle_lifecycle.c` | `nn::oe` operating environment (focus, operation mode, language); graceful exit |
 | `hle/hle_time.c` | `nn::time` from the system clock |

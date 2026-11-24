@@ -40,7 +40,7 @@ void dm_input_set(uint64_t buttons, int32_t lx, int32_t ly, int32_t rx, int32_t 
 uint64_t dm_input_samples(void) { return (uint64_t)atomic_load(&g_sampling); }   // how many times the game has read a controller
 
 static uint32_t connected_id(void) { return dm_opmode() == 0 ? NPAD_HANDHELD : 0; }   // follows the operation mode (hle_oe.c)
-uint32_t hle_hid_connected_npad(void) { return connected_id(); }   // nfp's NFC device sits on this controller (hle_nfp.c)
+uint32_t hle_hid_connected_npad(void) { return connected_id(); }   // (hle_motion.c)
 static uint32_t style_of(uint32_t id) {
     if (id != connected_id()) return 0;
     return id == NPAD_HANDHELD ? STYLE_HANDHELD : STYLE_FULLKEY;

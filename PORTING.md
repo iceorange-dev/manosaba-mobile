@@ -1,6 +1,7 @@
-# Porting a Switch game
+# Setting up: from your dump to the device
 
-This is the workflow that took manosaba from a dump to running on iPhone. Each step names the tool and what to check before going on.
+The steps from a dump of manosaba to the game running on a Mac, an iPhone or an Android phone. Each names the tool and what to check before
+going on.
 
 ```
 your console ──► ExeFS + RomFS + system fonts            (data/switch/…)

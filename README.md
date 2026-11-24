@@ -85,7 +85,7 @@ Do not attach game files, keys, dumps, rewritten modules or IPAs.
 
 | Document | Covers |
 |---|---|
-| [PORTING.md](PORTING.md) | The workflow from the dump to the device (written for any game) |
+| [PORTING.md](PORTING.md) | Setting up: from your dump to the device |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Restoring a working copy, test procedures, where the work stands |
 | [docs/plan.md](docs/plan.md), [docs/plan-done.md](docs/plan-done.md) | What is left to do; every finished plan item in a few lines (the "plan item N" of code comments) |
 | [docs/sources.md](docs/sources.md) | Community ports drawn from, how far each was read, what was taken from each and what not |
@@ -111,13 +111,12 @@ port is also credited where it lives in the code.
   the host, graphics layer and verification tools, and later fixes; its contributors [SepheTT](https://github.com/SepheTT) and
   [BossaMelon](https://github.com/BossaMelon).
 - **[nxnative](https://github.com/seedds/nxnative)** ([seedds](https://github.com/seedds), MIT) and **botw-mobile**
-  ([Tommy Lau](https://github.com/TommyLau), MIT; no longer on GitHub), ports built on d2r-mobile: host and replay fixes, the extraction tool's
-  model, and most of what Tears of the Kingdom's system modules needed (they are Breath of the Wild 1.9.0's).
+  ([Tommy Lau](https://github.com/TommyLau), MIT; no longer on GitHub), ports built on d2r-mobile: host and replay fixes and the extraction tool's
+  model.
 - **[tomodachi-native](https://github.com/kuosuko/tomodachi-native)** ([kuosuko](https://github.com/kuosuko), MIT), a fork of nxnative: the
   duplicated colour slot, memory snapshots, a translator fix, attachment copies, code options.
-- **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)** ([ly05010419](https://github.com/ly05010419), MIT), a Tears of the Kingdom
-  port on the same lineage: where the game's shaders are, virtual cores, the movie decoder's behaviour, the 60 fps rules and the real-time
-  step, uniform snapshots and much of the graphics layer's handling of this game.
+- **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)** ([ly05010419](https://github.com/ly05010419), MIT), a port on the same
+  lineage: the movie decoder's behaviour, uniform snapshots and much of the graphics layer.
 - **[LASRecomp](https://github.com/peiikai/LASRecomp)** ([Peiikai](https://github.com/peiikai), MIT), a static recompilation of Link's
   Awakening: CPU-filled textures, wait and lock rules, GPU time, instruction test vectors.
 - **[nx2android](https://github.com/shirai91/nx2android)** ([shirai91](https://github.com/shirai91), MIT as its README states), nxnative's

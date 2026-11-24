@@ -46,7 +46,7 @@ them anyway): they are translated offline, once, into Metal libraries.
 A game's shaders are Maxwell (Tegra X1) machine code. Each one is identified by a **key**: the first 16 hex digits of the sha256 of its 0x880-byte
 control section followed by its code area (the length at control +0x704). At run time the game passes both to `nvnProgramSetShaders`, and the
 replay layer computes the same key (`shader_key` in `nvn/hle/programs.inc`; the same definition as nxnative's). The control section alone is not
-enough: it holds sizes and resource counts but no hash of the code, and in Tears of the Kingdom 807 of 3667 shaders share their control section
+enough: it holds sizes and resource counts but no hash of the code, and in another game 807 of 3667 shaders share their control section
 with another shader (313 sections), so a key without the code ran one shader's code for all of them.
 
 ```
@@ -81,7 +81,7 @@ Binding conventions used by the translation:
 
 - uniform buffer slot r is constant section `c[3 + r]`;
 - the handle of texture r is at `c[2][tex + 8r]`, of separate sampler r at `c[2][samp + 8r]`, of image r at `c[2][img + 8r]`, with the bases of
-  the game's `nvn_c2` (manosaba: 0x168 / 0x568 / 0x120; Tears of the Kingdom: 0x20 / 0x568 / 0x120);
+  the game's `nvn_c2` (manosaba: 0x168 / 0x568 / 0x120);
 - the depth convention is the game's `depth_mode`: with `near_is_minus_w` every vertex shader remaps z to Metal's 0..w;
 - the address of storage buffer r is at `c[0][base + 16r]`, base: vertex 0x110, compute 0x310, fragment 0x510;
 - compute thread group size: control section +0x748 / +0x74c / +0x750;
@@ -237,7 +237,7 @@ All are environment variables. The Mac host fills `DM_NVN_SHMAP` and `DM_MSL_DIR
 | `DM_NVN_WB_IDLE=1` | An experiment (plan item 94): a texture the GPU wrote in a CPU-visible pool and left alone for 30 submissions is written back to its storage, and one whose storage the CPU writes afterwards is uploaded from it again. Off: it changes more than the terrain it is for (94a) |
 | `DM_NVN_WB_IDLE_SUBS=<n>` | With `DM_NVN_WB_IDLE=1`: write back after n idle submissions instead of 30 (1: after every GPU write; a diagnostic) |
 | `DM_SAMP_LB_EMU=1` or `0` | Sampler LOD biases carried by the shaders (a variant per bound bias, built from the shader's MSL) whatever the sampler probe found, or never. By default they are where the probe found the GPU ignores the sampler's bias (plan item 318) |
-| `DM_NVN_ANISO=<2..16>` | Anisotropic filtering raised to that on mipmapped linear samplers without a depth compare or a reduction (most of Tears of the Kingdom's ask for 1); off by default, which keeps the shots comparable with the console's |
+| `DM_NVN_ANISO=<2..16>` | Anisotropic filtering raised to that on mipmapped linear samplers without a depth compare or a reduction; off by default, which keeps the shots comparable with the console's |
 | `DM_NVN_COUNTS=1` | Counters in the power summary: draws sampling their own attachment, timestamp reports, ClearTexture, passes without a draw, passes drawing only a top-left part, counter reads and svcs a second |
 | `DM_NVN_TS_LATE_US=<µs>` | Report counter timestamps that much later (the game sees a slower GPU) |
 | `DM_NVN_FBX=all` or `0` | Copy the attachment for every draw that samples it (default: only after a texture barrier), or never |
