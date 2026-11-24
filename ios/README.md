@@ -70,7 +70,7 @@ blending, at most 256 MB a buffer here), and the game's pictures come out wrong 
 frame, nearly black). Device metallibs do not
 load there (`sim_metal.py` compiles the same MSL with the Simulator's SDK; the metallib header's platform byte says which: 7 the Simulator, 2 a
 device). The game data is cloned into the app's container (APFS, no bytes copied): a link to a folder under the Desktop made the app wait in
-`open()` for a permission answer. VP8 / VP9 movies do not play (no libvpx for the Simulator).
+`open()` for a permission answer.
 
 ## Unsigned IPA
 

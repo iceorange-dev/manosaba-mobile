@@ -19,7 +19,7 @@
 #                             from the workspace into the app (Library/Application Support); what: some of romfs sysfont overlay (default all)
 #   run.sh sim-build          the same build for the iOS Simulator (plan item 114: the on-screen controls, safe areas and lifecycle without a phone):
 #                             Metal 3 (the Simulator SDK has no Metal 4 and no MetalFX), arm64, unsigned, the Simulator's shaders
-#                             ($DM_ROOT/build/ios/sim/<game>/b-<chain>, ios/tools/sim_metal.py), no libvpx
+#                             ($DM_ROOT/build/ios/sim/<game>/b-<chain>, ios/tools/sim_metal.py)
 #   run.sh sim-run [seconds]  on a Simulator (DM_SIM_DEVICE, default "iPhone 17 Pro"; booted without a window): install, clone the workspace's RomFS
 #                             and fonts into the app (once; DM_SIM_DATA=fresh again), launch with DM_SIM_ENV="A=1 B=2" (DM_NVN_TBDR=0 unless given), wait, then a screenshot
 #                             ($DM_ROOT/run/ios/sim.png) and Documents/boot.txt (sim_boot.txt). DM_SIM_BG=<at>,<len>: at <at> s the Settings app
@@ -74,12 +74,7 @@ if [ "$CMD" = build ] || [ "$CMD" = ipa ] || [ "$CMD" = sim-build ]; then
   # Host sources, header paths and frameworks from host/Makefile; the game's modules as embedded code
   python3 tools/gen_build.py ../host Gen "$GAME" > Gen/dm.xcconfig || { t "[red] gen_build failed"; exit 1; }
   F=$(python3 tools/gen_embed.py "$OUT" Gen/embed.S $MODS) || { t "[red] gen_embed failed ($OUT)"; exit 1; }
-  # VP8 / VP9 movies (plan item 62b): the iOS libvpx when it has been built (tools/build_libvpx.sh), checked first; host/hle/hle_movie.c finds its headers
-  VPX=$ROOT/build/ios/libvpx; VPXL=; VPXI=
-  if [ "$CMD" = sim-build ]; then t "Simulator: no libvpx (the iOS one is built for the device): VP8 / VP9 movies will not play"
-  elif [ -f "$VPX/lib/libvpx.a" ]; then python3 tools/vpx_check.py "$VPX/lib/libvpx.a" 18.0 || exit 1; VPXL="\"$VPX/lib/libvpx.a\""; VPXI="\"$VPX/include\""
-  else t "no iOS libvpx in $VPX: VP8 / VP9 movies will not play (ios/tools/build_libvpx.sh builds it)"; fi
-  { echo "OTHER_LDFLAGS = \$(inherited) \$(DM_FRAMEWORKS) $F $VPXL"; echo "DM_VPX_INC = $VPXI"; echo "DM_GAME_NAME = $GAME"; } >> Gen/dm.xcconfig
+  { echo "OTHER_LDFLAGS = \$(inherited) \$(DM_FRAMEWORKS) $F"; echo "DM_GAME_NAME = $GAME"; } >> Gen/dm.xcconfig
   python3 tools/app_names.py Gen/Names "$GAME" "$TITLE" $(get apple_localizations) > /dev/null || exit 1   # the title per language (plan item 314d)
   PF=$(python3 tools/product_files.py "$OUT" $MODS) || { t "[red] the product's module lists are incomplete"; exit 1; }   # fixups, gates, option lists
   while IFS= read -r f; do cp "$f" Gen/dm/ || exit 1; done <<< "$PF"   # one path a line: the workspace path may hold a space

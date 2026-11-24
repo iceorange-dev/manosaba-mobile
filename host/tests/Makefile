@@ -471,7 +471,7 @@ run: \
 	 fi; echo "t_mouse_route_swallow: a monitor swallowing every press outside the picture takes the title bar from AppKit, as expected"
 	TMPDIR="$(abspath $(B))" $(B)/t_movie 2>/dev/null
 	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_movie_evcopy > $(B)/t_movie_evcopy.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "31 checks, 3 failed" $(B)/t_movie_evcopy.log; then \
+	 if [ "$$status" -ne 1 ] || ! grep -q "43 checks, 3 failed" $(B)/t_movie_evcopy.log; then \
 	   cat $(B)/t_movie_evcopy.log; echo "t_movie_evcopy: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_movie_evcopy: events copied at registration stay empty, as expected"
 	$(B)/t_net
@@ -1017,13 +1017,11 @@ $(B)/t_hid_script_nocircle: t_hid_script.c ../hle/hle_hid.c ../hle.h ../dm.h ../
 	clang -O1 -Wno-unused-function -DDM_TEST_HID_NO_CIRCLE -I.. -o $@ t_hid_script.c
 $(B)/t_hid_script_norstick: t_hid_script.c ../hle/hle_hid.c ../hle.h ../dm.h ../dm_input.h ../front.h | $(B)
 	clang -O1 -Wno-unused-function -DDM_TEST_HID_NO_RSTICK -I.. -o $@ t_hid_script.c
-# VP9 movies need libvpx (brew install libvpx), as the host build does (host/Makefile VPX)
-VPX ?= /opt/homebrew/opt/libvpx
-$(B)/t_movie: t_movie.c ../hle/hle_movie.c ../runtime/hstack.S ../runtime/hstack.c ../media/movie_av.m ../movie_av.h ../media/movie_webm.c ../movie_webm.h ../hle.h ../dm.h | $(B)
-	clang -O1 -Wall -Wno-unused-function -I.. -isystem $(VPX)/include -fobjc-arc -o $@ t_movie.c ../media/movie_av.m ../media/movie_webm.c ../runtime/hstack.S ../runtime/hstack.c $(VPX)/lib/libvpx.a \
+$(B)/t_movie: t_movie.c t_movie_clip.m ../hle/hle_movie.c ../runtime/hstack.S ../runtime/hstack.c ../media/movie_av.m ../movie_av.h ../hle.h ../dm.h | $(B)
+	clang -O1 -Wall -Wno-unused-function -I.. -fobjc-arc -o $@ t_movie.c t_movie_clip.m ../media/movie_av.m ../runtime/hstack.S ../runtime/hstack.c \
 		-framework Foundation -framework AVFoundation -framework CoreMedia -framework CoreVideo
-$(B)/t_movie_evcopy: t_movie.c ../hle/hle_movie.c ../runtime/hstack.S ../runtime/hstack.c ../media/movie_av.m ../movie_av.h ../media/movie_webm.c ../movie_webm.h ../hle.h ../dm.h | $(B)
-	clang -O1 -Wall -Wno-unused-function -I.. -isystem $(VPX)/include -fobjc-arc -DDM_TEST_EVENTS_COPIED -o $@ t_movie.c ../media/movie_av.m ../media/movie_webm.c ../runtime/hstack.S ../runtime/hstack.c $(VPX)/lib/libvpx.a \
+$(B)/t_movie_evcopy: t_movie.c t_movie_clip.m ../hle/hle_movie.c ../runtime/hstack.S ../runtime/hstack.c ../media/movie_av.m ../movie_av.h ../hle.h ../dm.h | $(B)
+	clang -O1 -Wall -Wno-unused-function -I.. -fobjc-arc -DDM_TEST_EVENTS_COPIED -o $@ t_movie.c t_movie_clip.m ../media/movie_av.m ../runtime/hstack.S ../runtime/hstack.c \
 		-framework Foundation -framework AVFoundation -framework CoreMedia -framework CoreVideo
 $(B)/t_options: t_options.c ../runtime/options.c ../dm.h | $(B)
 	clang -O1 -Wall -Werror -I.. -o $@ t_options.c

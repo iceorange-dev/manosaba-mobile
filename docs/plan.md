@@ -13,9 +13,8 @@ has run on a phone yet: an iPhone and an Android run come before the parts of 32
 - 328 · shared code only that game reached, by its gate, in this order: `virtual_cores` (`hle_thread.c`, the `*_BLOCKING` waits); the
   translation thread; the RomFS overlay and RomFS parts; the code options (a new rewriter stamp: the product rebuilt, and the stale comment
   of `games/manosaba/rules.py` with it); the wide picture and the widening (the settings' "Wide screen" switch goes with them).
-- 329 · VP8 / VP9 movies (`host/media/movie_webm.c`, the decoder of `hle_movie.c`, libvpx on the Mac, iOS and CI): manosaba's six movies are
-  MP4 (its RomFS holds no WebM). Takeovers the game's modules bind but no run has used (audren, 4 of its 12 names; motion, friends, net,
-  swkbd) and the lists it has none of (`fout.tsv`, `border_msl.txt`, `lodbias_msl.txt`): kept until a longer run and a phone show them unused.
+- 329 · takeovers the game's modules bind but no run has used (audren, 4 of its 12 names; motion, friends, net, swkbd) and the lists it has
+  none of (`fout.tsv`, `border_msl.txt`, `lodbias_msl.txt`): kept until a longer run and a phone show them unused.
 - 330 · the documents: DEVELOPMENT.md and the READMEs' tables after 328; the open items below that came from the other game's work (271,
   220, 320g, 320e, 318, 67), each with its part.
 

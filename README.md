@@ -139,8 +139,6 @@ port is also credited where it lives in the code.
   told the bit order of the 16-bit formats (`gfx/tex/nvn_fmt_mtl.c`).
 - **nvn.h** ([h1k421](https://github.com/h1k421), MIT): NVN declarations in `gfx/nvn/include/nvn.h`.
 - **[bcdec](https://github.com/iOrange/bcdec)** ([iOrange](https://github.com/iOrange), MIT or Unlicense): BC texture decoding.
-- **[libvpx](https://github.com/webmproject/libvpx)** (WebM Project, BSD-3-Clause): VP8 / VP9 movie decoding, linked statically from Homebrew
-  when installed.
 - Tools: [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross), [XcodeGen](https://github.com/yonaskolb/XcodeGen),
   [.NET](https://dotnet.microsoft.com/), [Capstone](https://github.com/capstone-engine/capstone),
   [Unicorn](https://github.com/unicorn-engine/unicorn), [python-lz4](https://github.com/python-lz4/python-lz4),

@@ -25,7 +25,7 @@ CFLAGS = -O1 -g -fPIC -Wall -Wno-unused-function -Wno-format -Wno-deprecated-dec
 HOST_SRC = $(sort $(wildcard $(H)/hle/hle_*.c)) $(H)/hle/hle.c \
 	$(addprefix $(H)/runtime/,crash.c hstack.c loader.c main.c options.c romfs_parts.c romfs_validate.c thread.c entry.S hstack.S) \
 	$(sort $(wildcard $(H)/game/*.c)) $(addprefix $(H)/diag/,diag.c memsnap.c sdktest.c) $(addprefix $(H)/front/,cmdchan.c) \
-	$(H)/media/movie_webm.c $(H)/cloud/cloudsync.c
+	$(H)/cloud/cloudsync.c
 # The graphics layer without its Metal backend: the display and GPU driver glue takeovers (nn::vi, nv::), NVN's takeover and the replay core
 # (gfx/nvn/hle_nvn.c, core/), the pool write tracking, texture layouts and deswizzling, the format table and the trace. The backend: the null one
 # (gfx/nvn/null: nothing drawn) under adb, the Vulkan one (gfx/nvn/vk, plan item 301e) in the app
@@ -114,7 +114,7 @@ lib: $(B)/libdmhost.so
 
 # Unit tests of the Android parts, for the phone: build/tests/<name> (run-tests pushes them to /data/local/tmp/dm_tests and runs each)
 TESTS = t_sha256 t_sha256_63 t_hthread t_hthread_nov t_slots t_input t_input_ydown t_input_three t_movie t_movie_uvswap t_vk_be t_vk_be_early t_vk_be_wind t_vk_be_grid t_vk_be_stale t_vk_be_cont t_vk_be_ubsh t_vk_be_shot t_vk_be_ts t_vk_be_pe t_vk_be_bar t_vk_be_ptime t_vk_be_arena t_vk_be_pend t_vk_be_pgall t_vk_be_gcopy t_vk_be_gpart t_vk_be_unguarded t_vk_be_qsabc t_vk_be_fmt16 t_vk_be_nohb t_vk_be_dup t_vk_rules t_vk_rules_mask t_vk_rules_swz t_vk_rules_filter t_vk_rules_pcache t_vk_rules_vote t_thermal t_thermal_raw t_settings t_settings_over t_settings_always t_data_idx t_data_idx_any t_crash_stderr t_crash_stderr_nodeadman
-TEST_DATA = build/tests/movie.mp4 build/tests/movie.webm build/tests/movie1080.mp4 build/tests/t_vk.dmvk
+TEST_DATA = build/tests/movie.mp4 build/tests/movie1080.mp4 build/tests/t_vk.dmvk
 test: $(addprefix build/tests/,$(TESTS)) $(TEST_DATA)
 build/tests:
 	mkdir -p $@
@@ -154,19 +154,17 @@ build/tests/t_input_ydown: tests/t_input.c input_map.h | build/tests
 	$(CC) -O1 -Wall -I. -I$(H) -DDM_TEST_INPUT_Y_DOWN -o $@ $< -lm
 build/tests/t_input_three: tests/t_input.c input_map.h | build/tests
 	$(CC) -O1 -Wall -I. -I$(H) -DDM_TEST_THREE_TAP_REPEAT -o $@ $< -lm
-MOVIE_SRC = tests/t_movie.c movie_android.c ../host/media/movie_webm.c
+MOVIE_SRC = tests/t_movie.c movie_android.c
 build/tests/t_movie: $(MOVIE_SRC) | build/tests
 	$(CC) -O1 -Wall -Wno-format -D_GNU_SOURCE -I. -I$(H) -Icompat -include compat/darwin.h -o $@ $^ -lmediandk -lm
 build/tests/t_movie_uvswap: $(MOVIE_SRC) | build/tests
 	$(CC) -O1 -Wall -Wno-format -D_GNU_SOURCE -I. -I$(H) -Icompat -include compat/darwin.h -DDM_TEST_MOVIE_UV_SWAPPED -o $@ $^ -lmediandk -lm
-# t_movie's clips (ffmpeg on the Mac): 1 s of red, H.264 with a key frame every 10 and a half-scale 440 Hz sine in AAC; the same red in VP9; 0.2 s of blue at 1080p
+# t_movie's clips (ffmpeg on the Mac): 1 s of red, H.264 with a key frame every 10 and a half-scale 440 Hz sine in AAC; 0.2 s of blue at 1080p
 build/tests/movie.mp4: | build/tests
 	ffmpeg -loglevel error -y -f lavfi -i color=c=red:s=320x240:r=30:d=1 -f lavfi -i sine=frequency=440:sample_rate=48000:duration=1 -t 1 \
 		-af volume=4 -ac 2 -c:v libx264 -pix_fmt yuv420p -g 10 -bf 0 -c:a aac -b:a 128k $@
 build/tests/movie1080.mp4: | build/tests
 	ffmpeg -loglevel error -y -f lavfi -i color=c=blue:s=1920x1080:r=30:d=0.2 -c:v libx264 -pix_fmt yuv420p -bf 0 $@
-build/tests/movie.webm: | build/tests
-	ffmpeg -loglevel error -y -f lavfi -i color=c=red:s=320x240:r=30:d=1 -c:v libvpx-vp9 -g 10 -pix_fmt yuv420p $@
 # the Vulkan backend without a window, with the core modules it calls (plan item 301e1), and its draws' shaders (301e2)
 VKT_SRC = tests/t_vk_be.c $(VK_SRC) $(addprefix ../gfx/nvn/core/,core.c state.c pend.c usnap.c tbdr.c store_index.c prog.c upd.c frame.c guard.c rt.c) ../gfx/nvn/nvn_tex.c ../gfx/nvn/nvn_dirty.c \
 	../gfx/tex/nvn_deswizzle.c

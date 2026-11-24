@@ -65,10 +65,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   footprint 2.4 GB. MacNativeGames e099353: ~8,800 kept metallib mappings filled an A16 iPad's 11,400 vnodes (103).
   Left: other devices, the cold-texture census of 56 under a memory limit.
 - 62a · b54 · guest memory reserved at the top of `main()`, before UIKit and Metal; the iPhone 17 Pro gave the whole 6144 MB.
-- 62b · b54 · VP9 on iOS with libvpx 1.17.0 (GirlNet dropped VideoToolbox's VP9 probe, which faulted at a movie's start;
-  `ios/tools/build_libvpx.sh`, SHA-256 pinned, the value totk-mobile pins).
-- 62b2 · b66 · the iOS libvpx built right: `build_libvpx.sh` sets the iOS minimum to 18.0 (libvpx's configure fixed it at 7.0: no NEON, no
-  `-O3`). The cutscene plays smoothly (the user, 2026-10-21); hardware VP9 not needed for now.
 - 62c · b54 · BC1 → ASTC 4x4 on the GPU on GPUs without BC (MacNativeGames `nvn_bc1astc.c`, `nvn_bctc.metal`; `DM_NVN_BC1_ASTC=0`): the
   prologue 2,314 MB against 3,545 MB decompressed and 1,984 MB with BC.
 - 62c3 · b55 · BC textures the GPU writes, decoded after the pass on GPUs without BC (Apple's Metal Feature Set Tables of 2026-05-21: every
@@ -535,7 +531,7 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196-b202) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
+- 328 · part (b196-b203) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
   `games/totk`, `engines/bnsh`, the hooks only it implemented with what they drove (the frame step, uncapped pacing, ProMotion's 120 Hz, the
-  movies' hold), sead's heaps, eight profile fields, mods, cheats, pchtxt, the on-screen touch pad, nn::nfp and nn::codec. Left: plan.md.
-
+  movies' hold), sead's heaps, eight profile fields, mods, cheats, pchtxt, the on-screen touch pad, nn::nfp and nn::codec, VP8 / VP9 movies
+  with libvpx (329; the game's clips are H.264 and AAC in MP4). Left: plan.md.

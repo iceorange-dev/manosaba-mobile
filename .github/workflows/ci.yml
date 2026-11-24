@@ -1,5 +1,5 @@
 # Checks on every push to main and every pull request (after GirlNet's nxnative fork, mac-host.yml of bfc0376, and LASRecomp's ci.yml, both MIT):
-# the Mac host builds for every game in games/ (the Metal 4 host and the Metal 3 one, with libvpx for the VP9 movies), and the tests that need no
+# the Mac host builds for every game in games/ (the Metal 4 host and the Metal 3 one), and the tests that need no
 # game files, no keys and no GPU run: the host unit tests (host/tests), the parsers of outside input again under the undefined-behavior sanitizer
 # (make -C host/tests run-ubsan) and the tool tests (tools/tests; t_rewriter_synth.py runs the rewriter, verify/structck.py and verify/equiv.py on a
 # synthetic module, so lz4 and unicorn are installed too); every tracked file passes the public-content audit (tools/audit_public.py: no
@@ -27,8 +27,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
       - name: Public-content audit
         run: python3 -I tools/audit_public.py
-      - name: libvpx
-        run: brew install libvpx
       - name: Host builds, every game, Metal 4 and Metal 3
         run: |
           for g in $(ls games); do

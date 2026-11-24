@@ -1,6 +1,5 @@
 // The movie library's host backend on Android (host/movie_av.h; plan item 301d): AVFoundation's part (media/movie_av.m) done with the NDK's media
-// API. WebM / Matroska files go to movie_webm.c as on Apple (compressed reads only, from the mapped file); anything else to AMediaExtractor (MP4 /
-// MOV, H.264 and AAC as Unity's VideoPlayer gives them). A reader has its own extractor on one track:
+// API: AMediaExtractor reads the container (MP4 / MOV, H.264 and AAC as Unity's VideoPlayer gives them). A reader has its own extractor on one track:
 //   compressed: the samples as stored, in decode order (the extractor gives presentation times only, so dts_us = pts_us)
 //   decoded: AMediaCodec on the track's format, its output in buffers (no surface): video asked for as YUV420SemiPlanar (21, NV12) and taken as the
 //   decoder reports it (its colour format, stride and slice height: 21, or 19 = planar I420) to NV12 at the track's size (Y, then Cb Cr interleaved,
@@ -15,57 +14,20 @@
 #include <sys/stat.h>
 #include "dm.h"
 #include "movie_av.h"
-#include "movie_webm.h"
 
 struct mav_media {
     _Atomic int refs; int n;
     mav_track info[8]; int xtrack[8];   // extractor: the extractor's track of each entry
     char file[1024];
-    webm *wm; int wtrack[8];            // WebM: the demuxer and its track of each entry
 };
 struct mav_reader {
     mav_media *m; int kind, compressed, track; int32_t w, h, ch;
     int fd; AMediaExtractor *x; AMediaCodec *c; int64_t from_us; int in_eos;
     int32_t cf, stride, slice;          // decoded video: the decoder's output layout (AMediaCodec_getOutputFormat)
     uint8_t *buf; size_t cap;
-    const webm_frame *frames; int wnext, wcount;
 };
 
 enum { COLOR_YUV420_PLANAR = 19, COLOR_YUV420_SEMIPLANAR = 21 };   // MediaCodecInfo.CodecCapabilities COLOR_FormatYUV420Planar / SemiPlanar
-static int is_ebml(const char *file) {
-    FILE *f = fopen(file, "rb"); uint8_t b[4] = {0}; size_t n = f ? fread(b, 1, sizeof b, f) : 0;
-    if (f) fclose(f);
-    return n == 4 && b[0] == 0x1A && b[1] == 0x45 && b[2] == 0xDF && b[3] == 0xA3;
-}
-static const char *webm_mime(const webm_track *t) {
-    if (t->type == WEBM_VIDEO) return !strcmp(t->codec, "V_VP9") ? "video/x-vnd.on2.vp9" : !strcmp(t->codec, "V_VP8") ? "video/x-vnd.on2.vp8" : "video/unknown";
-    return !strcmp(t->codec, "A_VORBIS") ? "audio/vorbis" : "audio/unknown";
-}
-static mav_media *open_webm(const char *file) {   // as movie_av.m's
-    char why[200]; webm *w = webm_open(file, why, sizeof why);
-    if (!w) { LOG("[movie] [red] %s: %s", file, why); return NULL; }
-    mav_media *m = calloc(1, sizeof *m); m->wm = w;
-    for (int i = 0; i < webm_track_count(w) && m->n < 8; i++) {
-        const webm_track *t = webm_track_at(w, i); const webm_frame *f = webm_frames(w, i);
-        if ((t->type != WEBM_VIDEO && t->type != WEBM_AUDIO) || !t->nframes) continue;
-        if (t->laced) LOG("[movie] [red] %s track %d: %d laced blocks left out (lacing is not split)", file, t->number, t->laced);
-        mav_track *ti = &m->info[m->n];
-        ti->kind = t->type == WEBM_VIDEO ? MAV_VIDEO : MAV_AUDIO; ti->mime = webm_mime(t);
-        int64_t span = f[t->nframes - 1].pts_us - f[0].pts_us, bytes = 0;
-        for (int k = 0; k < t->nframes; k++) bytes += f[k].size;
-        ti->duration_us = webm_duration_us(w) > 0 ? webm_duration_us(w) : span + t->default_ns / 1000;
-        ti->bit_rate = ti->duration_us > 0 ? (int32_t)(bytes * 8 * 1000000 / ti->duration_us) : 0;
-        ti->max_sample = (int32_t)t->max_size;
-        if (t->type == WEBM_VIDEO) {
-            ti->width = t->width; ti->height = t->height;
-            ti->frame_rate = t->default_ns > 0 ? (int32_t)llround(1e9 / (double)t->default_ns) : span > 0 ? (int32_t)llround((t->nframes - 1) * 1e6 / (double)span) : 0;
-        } else { ti->channels = t->channels; ti->sample_rate = (int32_t)llround(t->sample_rate); }
-        strlcpy(ti->lang, t->lang, sizeof ti->lang);
-        m->wtrack[m->n++] = i;
-    }
-    if (!m->n) { LOG("[movie] [red] %s: no video or audio frames", file); webm_close(w); free(m); return NULL; }
-    atomic_store(&m->refs, 1); return m;
-}
 static AMediaExtractor *extractor(const char *file, int *fd) {
     *fd = open(file, O_RDONLY | O_CLOEXEC); struct stat st;
     if (*fd < 0 || fstat(*fd, &st)) { if (*fd >= 0) close(*fd); *fd = -1; return NULL; }
@@ -75,7 +37,6 @@ static AMediaExtractor *extractor(const char *file, int *fd) {
     return x;
 }
 mav_media *mav_open(const char *file) {
-    if (is_ebml(file)) return open_webm(file);
     int fd; AMediaExtractor *x = extractor(file, &fd); if (!x) return NULL;
     mav_media *m = calloc(1, sizeof *m); snprintf(m->file, sizeof m->file, "%s", file);
     for (size_t i = 0; i < AMediaExtractor_getTrackCount(x) && m->n < 8; i++) {
@@ -105,7 +66,7 @@ mav_media *mav_open(const char *file) {
     atomic_store(&m->refs, 1); return m;
 }
 void mav_retain(mav_media *m) { atomic_fetch_add(&m->refs, 1); }
-void mav_release(mav_media *m) { if (m && atomic_fetch_sub(&m->refs, 1) == 1) { webm_close(m->wm); free(m); } }
+void mav_release(mav_media *m) { if (m && atomic_fetch_sub(&m->refs, 1) == 1) free(m); }
 int mav_track_count(const mav_media *m) { return m->n; }
 const mav_track *mav_track_at(const mav_media *m, int i) { return i >= 0 && i < m->n ? &m->info[i] : NULL; }
 
@@ -123,12 +84,6 @@ mav_reader *mav_reader_new(mav_media *m, int track, int64_t start_us, int compre
     mav_reader *r = calloc(1, sizeof *r); r->fd = -1; r->kind = ti->kind; r->compressed = compressed; r->track = track;
     r->w = ti->width; r->h = ti->height; r->ch = ti->channels; r->from_us = start_us > 0 ? start_us : 0;
     mav_retain(m); r->m = m;
-    if (m->wm) {   // WebM: compressed only (its VP8 / VP9 are decoded by hle_movie.c's libvpx decoder from what the game sends)
-        if (!compressed) { mav_reader_free(r); return NULL; }
-        r->frames = webm_frames(m->wm, m->wtrack[track]); r->wcount = webm_track_at(m->wm, m->wtrack[track])->nframes;
-        r->wnext = start_us > 0 ? webm_seek_frame(m->wm, m->wtrack[track], start_us) : 0;
-        return r;
-    }
     if (!(r->x = extractor(m->file, &r->fd)) || AMediaExtractor_selectTrack(r->x, (size_t)m->xtrack[track]) != AMEDIA_OK) { mav_reader_free(r); return NULL; }
     if (start_us > 0) AMediaExtractor_seekTo(r->x, start_us, AMEDIAEXTRACTOR_SEEK_PREVIOUS_SYNC);
     if (compressed) return r;
@@ -216,12 +171,6 @@ static int decoded_next(mav_reader *r, mav_sample *out) {
 }
 int mav_reader_next(mav_reader *r, mav_sample *out) {
     memset(out, 0, sizeof *out);
-    if (r->m->wm) {   // WebM: the next indexed frame, from the mapping
-        if (r->wnext >= r->wcount) return 0;
-        const webm_frame *f = &r->frames[r->wnext++];
-        out->data = webm_frame_data(r->m->wm, f); out->size = f->size; out->pts_us = out->dts_us = f->pts_us; out->sync = f->key;
-        return 1;
-    }
     if (!r->compressed) return decoded_next(r, out);
     ssize_t n = AMediaExtractor_getSampleSize(r->x); if (n < 0) return 0;
     uint8_t *d = room(r, n ? (size_t)n : 1); if (!d) return -1;

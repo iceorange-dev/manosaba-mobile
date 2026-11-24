@@ -1,25 +1,25 @@
-// movie library host side (hle_movie.c) with WebM / VP9 (movie_webm.c, libvpx), called the way Tears of the Kingdom calls it: a VP9 stream is encoded
-// here with libvpx (12 uniform frames, key frames 0 and 6), muxed into a WebM file that also has a Void element, a BlockGroup with a ReferenceBlock and
-// an unknown-sized Cluster that ends where the next Cluster begins, then read through the Extractor and decoded through the Decoder (NV12 values,
-// events, end of stream, output format, pacing and dropping late frames). Expected values come from the encoder input, not from the code under test.
-// t_movie <file.webm>: probe a real movie instead (every frame through the same path; decode errors, timing, three frames as PPM in $TMPDIR).
+// movie library host side (hle_movie.c with media/movie_av.m), called the way Unity's VideoPlayer calls it for manosaba's clips (MP4 with H.264
+// and AAC): t_movie_clip.m writes a clip with AVAssetWriter (12 uniform frames of 320 x 240 at 24 per second, a key frame at least every 6, and a
+// 440 Hz sine at half scale, 48 kHz stereo); the Extractor reads it through a ClientStreamReader and by path; the Decoders give NV12 frames and
+// PCM16 (values, times, events, end of stream, output format, a loop, Flush). Expected values come from what was encoded, not from the code under
+// test. -DDM_TEST_EVENTS_COPIED (the DecoderEvents copied when they are registered, plan item 64k): 3 fail.
+// t_movie <file>: a real movie through the same path (every video frame and audio chunk: counts, times, decode time).
 #include "../hle/hle_movie.c"
-#include <vpx/vp8cx.h>
-#include <vpx/vpx_encoder.h>
+#include <dirent.h>
+#include <math.h>
 #include <time.h>
 
 struct dm_flags g_flag;
 uint64_t g_t0_ns;
 uint64_t now_ns(void) { return clock_gettime_nsec_np(CLOCK_UPTIME_RAW); }
-static uint64_t t_clock;
-uint64_t guest_ns(void) { return t_clock; }
-static char t_dir[512];
+static char t_dir[512]; static const char *t_probe;
 int dm_fs_host_file(const char *path, char *out, size_t n) {
     if (strncmp(path, "content:/", 9)) return 0;
-    snprintf(out, n, "%s/%s", t_dir, path + 9);
+    if (t_probe) snprintf(out, n, "%s", t_probe); else snprintf(out, n, "%s/%s", t_dir, path + 9);
     return access(out, R_OK) == 0;
 }
-static int t_events[4]; static int t_event_obj[4];   // DecoderEvents: the test's EventType objects are these ints
+enum { EV_INPUT, EV_OUTPUT, EV_FORMAT, EV_ERROR };   // DecoderEvents order
+static int t_events[4]; static int t_event_obj[4];   // the test's EventType objects are these ints
 static void t_signal(void *ev) { for (int i = 0; i < 4; i++) if (ev == &t_event_obj[i]) t_events[i]++; }
 static void t_delete(void *p) { free(p); }
 void *guest_sym(const char *name) {
@@ -32,281 +32,296 @@ static int g_fail, g_n;
 #define EXPECT(name, want, got) do { long long w_ = (long long)(want), g_ = (long long)(got); g_n++; \
     printf("%-60s expected %-10lld got %-10lld %s\n", name, w_, g_, w_ == g_ ? "✓" : "✗"); if (w_ != g_) g_fail++; } while (0)
 
-// ---- WebM writer: element IDs as RFC 9559 gives them, sizes as 8-byte VINTs ----
-typedef struct { uint8_t *d; size_t n, cap; } wbuf;
-static void put(wbuf *b, const void *p, size_t n) { if (b->n + n > b->cap) { b->cap = (b->n + n) * 2 + 4096; b->d = realloc(b->d, b->cap); } memcpy(b->d + b->n, p, n); b->n += n; }
-static void put_id(wbuf *b, uint32_t id) { uint8_t t[4]; int n = id > 0xFFFFFF ? 4 : id > 0xFFFF ? 3 : id > 0xFF ? 2 : 1; for (int i = 0; i < n; i++) t[i] = (uint8_t)(id >> (8 * (n - 1 - i))); put(b, t, (size_t)n); }
-static void put_size(wbuf *b, uint64_t v) { uint8_t t[8] = {0x01}; for (int i = 1; i < 8; i++) t[i] = (uint8_t)(v >> (8 * (7 - i))); put(b, t, 8); }
-static size_t open_el(wbuf *b, uint32_t id) { put_id(b, id); size_t at = b->n; put_size(b, 0); return at; }
-static void close_el(wbuf *b, size_t at) { uint64_t v = b->n - at - 8; for (int i = 1; i < 8; i++) b->d[at + i] = (uint8_t)(v >> (8 * (7 - i))); }
-static void put_uint(wbuf *b, uint32_t id, uint64_t v) { put_id(b, id); put_size(b, 8); uint8_t t[8]; for (int i = 0; i < 8; i++) t[i] = (uint8_t)(v >> (8 * (7 - i))); put(b, t, 8); }
-static void put_float(wbuf *b, uint32_t id, double f) { uint64_t u; memcpy(&u, &f, 8); put_uint(b, id, u); }
-static void put_str(wbuf *b, uint32_t id, const char *s) { put_id(b, id); put_size(b, strlen(s)); put(b, s, strlen(s)); }
-static void put_block(wbuf *b, uint32_t id, int16_t rel, uint8_t flags, const uint8_t *f, size_t n) {
-    put_id(b, id); put_size(b, 4 + n); uint8_t h[4] = {0x81, (uint8_t)(rel >> 8), (uint8_t)rel, flags}; put(b, h, 4); put(b, f, n);   // track number 1 as a 1-byte VINT
-}
+// ---- the clip ----
+enum { W = 320, H = 240, FPS = 24, N = 12, KEY = 6, HZ = 440, TOL = 4 };
+int t_movie_clip(const char *file, int w, int h, int fps, int nframes, int key_every, void (*ycbcr)(int frame, uint8_t out[3]), int tone_hz);
+static void colour(int i, uint8_t c[3]) { c[0] = (uint8_t)(40 + 12 * i); c[1] = (uint8_t)(90 + 6 * i); c[2] = (uint8_t)(170 - 6 * i); }   // Y, Cb, Cr of frame i
+static int64_t pts_us(int i) { return (int64_t)i * 1000000 / FPS; }
 
-enum { W = 72, H = 48, N = 12 };   // a chroma row of 36: the NEON interleave (16 at a time) and its scalar tail both run
-static uint8_t *g_pkt[N]; static size_t g_pkt_n[N]; static int g_key[N];
-static int64_t pts_ms(int i) { return (i * 1000 + 15) / 30; }   // 0, 33, 67, 100, ... (rounded)
-static int ycol(int i) { return 32 + 12 * i; } static int ucol(int i) { return 80 + 6 * i; } static int vcol(int i) { return 176 - 6 * i; }
-static int encode(void) {
-    vpx_codec_enc_cfg_t cfg; if (vpx_codec_enc_config_default(vpx_codec_vp9_cx(), &cfg, 0)) return 0;
-    cfg.g_w = W; cfg.g_h = H; cfg.g_timebase.num = 1; cfg.g_timebase.den = 30; cfg.g_lag_in_frames = 0; cfg.kf_mode = VPX_KF_DISABLED;
-    cfg.rc_end_usage = VPX_Q; cfg.rc_min_quantizer = 0; cfg.rc_max_quantizer = 4; cfg.g_threads = 1;
-    vpx_codec_ctx_t enc; if (vpx_codec_enc_init(&enc, vpx_codec_vp9_cx(), &cfg, 0)) return 0;
-    vpx_codec_control(&enc, VP8E_SET_CPUUSED, 8); vpx_codec_control(&enc, VP8E_SET_CQ_LEVEL, 0);
-    vpx_image_t img; vpx_img_alloc(&img, VPX_IMG_FMT_I420, W, H, 16);
-    int got = 0;
-    for (int i = 0; i <= N; i++) {
-        if (i < N) {
-            for (int y = 0; y < H; y++) memset(img.planes[0] + y * img.stride[0], ycol(i), W);
-            for (int y = 0; y < H / 2; y++) { memset(img.planes[1] + y * img.stride[1], ucol(i), W / 2); memset(img.planes[2] + y * img.stride[2], vcol(i), W / 2); }
-        }
-        if (vpx_codec_encode(&enc, i < N ? &img : NULL, i, 1, i % 6 == 0 ? VPX_EFLAG_FORCE_KF : 0, VPX_DL_GOOD_QUALITY)) return 0;
-        vpx_codec_iter_t it = NULL; const vpx_codec_cx_pkt_t *p;
-        while ((p = vpx_codec_get_cx_data(&enc, &it))) if (p->kind == VPX_CODEC_CX_FRAME_PKT && got < N) {
-            g_pkt_n[got] = p->data.frame.sz; g_pkt[got] = malloc(p->data.frame.sz); memcpy(g_pkt[got], p->data.frame.buf, p->data.frame.sz);
-            g_key[got] = (p->data.frame.flags & VPX_FRAME_IS_KEY) != 0; got++;
-        }
-    }
-    vpx_img_free(&img); vpx_codec_destroy(&enc);
-    return got == N;
+// ---- the game's movie::ClientStreamReader: slot 2 Open(path, &handle), 3 ReadAt(handle, offset, buffer, size), 4 Close(handle) ----
+typedef struct { void **vt; int opens, closes; } t_reader;
+static uint32_t rd_open(void *self, const char *path, void **h) {
+    char f[700]; if (strncmp(path, "content:/", 9)) return 0;
+    snprintf(f, sizeof f, "%s/%s", t_dir, path + 9); FILE *fp = fopen(f, "rb"); if (!fp) return 0;
+    *h = fp; ((t_reader *)self)->opens++; return 1;
 }
-static void write_webm(const char *file) {
-    wbuf b = {0};
-    size_t e = open_el(&b, 0x1A45DFA3); put_str(&b, 0x4282, "webm"); put_uint(&b, 0x4285, 2); close_el(&b, e);
-    size_t seg = open_el(&b, 0x18538067);
-    put_id(&b, 0xEC); put_size(&b, 5); put(&b, "\0\0\0\0\0", 5);                                         // Void
-    size_t info = open_el(&b, 0x1549A966); put_uint(&b, 0x2AD7B1, 1000000); put_float(&b, 0x4489, N * 1000.0 / 30); close_el(&b, info);
-    size_t trs = open_el(&b, 0x1654AE6B), te = open_el(&b, 0xAE);
-    put_uint(&b, 0xD7, 1); put_uint(&b, 0x83, 1); put_str(&b, 0x86, "V_VP9"); put_uint(&b, 0x23E383, 33333333);
-    size_t vid = open_el(&b, 0xE0); put_uint(&b, 0xB0, W); put_uint(&b, 0xBA, H); close_el(&b, vid);
-    close_el(&b, te); close_el(&b, trs);
-    size_t c1 = open_el(&b, 0x1F43B675); put_uint(&b, 0xE7, 0);
-    for (int i = 0; i < 6; i++) {
-        if (i == 4) {   // BlockGroup: a Block (no key flag there) and a ReferenceBlock, which makes it a non-key frame
-            size_t bg = open_el(&b, 0xA0); put_block(&b, 0xA1, (int16_t)pts_ms(i), 0, g_pkt[i], g_pkt_n[i]); put_uint(&b, 0xFB, (uint64_t)-33); close_el(&b, bg);
-        } else put_block(&b, 0xA3, (int16_t)pts_ms(i), g_key[i] ? 0x80 : 0, g_pkt[i], g_pkt_n[i]);
-    }
-    close_el(&b, c1);
-    put_id(&b, 0x1F43B675); { uint8_t u[8] = {0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; put(&b, u, 8); }   // Cluster of unknown size
-    put_uint(&b, 0xE7, (uint64_t)pts_ms(6));
-    for (int i = 6; i < 10; i++) put_block(&b, 0xA3, (int16_t)(pts_ms(i) - pts_ms(6)), g_key[i] ? 0x80 : 0, g_pkt[i], g_pkt_n[i]);
-    size_t c3 = open_el(&b, 0x1F43B675); put_uint(&b, 0xE7, (uint64_t)pts_ms(10));                        // ends the unknown-sized Cluster
-    for (int i = 10; i < N; i++) put_block(&b, 0xA3, (int16_t)(pts_ms(i) - pts_ms(10)), g_key[i] ? 0x80 : 0, g_pkt[i], g_pkt_n[i]);
-    close_el(&b, c3);
-    put_id(&b, 0x1C53BB6B); put_size(&b, 0);                                                             // Cues
-    close_el(&b, seg);
-    FILE *f = fopen(file, "wb"); if (!f) { perror(file); exit(1); }
-    fwrite(b.d, 1, b.n, f); fclose(f); free(b.d);
-}
+static size_t rd_read(void *self, void *h, int64_t off, void *buf, size_t n) { (void)self; fseeko(h, off, SEEK_SET); return fread(buf, 1, n, h); }
+static void rd_close(void *self, void *h) { ((t_reader *)self)->closes++; fclose(h); }
+static void *t_reader_vt[5] = {NULL, NULL, rd_open, rd_read, rd_close};
 
-// ---- the game's side: extractor → decoder input, decoder output → checks ----
+// ---- calls through the objects' vtables, as the game makes them ----
 typedef struct { void *vt; void *impl; } obj;   // movie::Extractor / Decoder: vtable + host state
 #define VCALL(o, slot, T, ...) ((T)((void **)(o)->vt)[slot])((void **)(o), ##__VA_ARGS__)
 typedef int (*f_ptr)(void **, const char *); typedef int (*f_i)(void **, int32_t *); typedef int (*f_imd)(void **, int, void **); typedef int (*f_int)(void **, int);
 typedef int (*f_64)(void **, int64_t); typedef int (*f_buf)(void **, mvbuf *); typedef int (*f_p64)(void **, int64_t *); typedef int (*f_md)(void **, void **);
 typedef int (*f_v)(void **); typedef int (*f_ii)(void **, int32_t *, int32_t *); typedef int (*f_ib)(void **, int32_t, mvbuf *);
 typedef int (*f_send)(void **, int32_t, int32_t, int32_t, int64_t, uint32_t); typedef int (*f_acq)(void **, int32_t *, int64_t *, uint32_t *, int32_t *);
-typedef int (*f_rel)(void **, int32_t);
-enum { E_SETPATH = 2, E_COUNT = 4, E_CONFIG = 5, E_SELECT = 6, E_SEEK = 8, E_READ = 10, E_ADVANCE = 11, E_TIME = 12, E_META = 13 };
+typedef int (*f_rel)(void **, int32_t); typedef int (*f_rdr)(void **, void *, const char *); typedef int (*f_pu64)(void **, uint64_t *); typedef void (*f_dtor)(void **);
+enum { E_DTOR = 0, E_SETPATH = 2, E_COUNT = 4, E_CONFIG = 5, E_SELECT = 6, E_UNSELECT = 7, E_SEEK = 8, E_TRACK = 9, E_READ = 10, E_ADVANCE = 11, E_TIME = 12, E_META = 13, E_SETREADER = 15 };
 enum { D_CONFIGURE = 2, D_EVENTS = 3, D_OUTFMT = 4, D_START = 5, D_FLUSH = 8, D_ACQIN = 9, D_GETIN = 10, D_SEND = 11, D_ACQOUT = 12, D_GETOUT = 13, D_OUTSIZE = 14, D_RELEASE = 15 };
 
-typedef struct { int n, eos, order_ok, values_ok, format_first, extra; int64_t pts[64]; } outlog;   // extra: a second output taken in one game frame
-static int64_t g_maxdiff;
-static void check_frame(const uint8_t *f, int64_t pts, outlog *L) {
-    int i = -1; for (int k = 0; k < N; k++) if (pts == pts_ms(k) * 1000) i = k;
-    if (i < 0) { L->values_ok = 0; return; }
-    for (int p = 0; p < W * H + W * H / 2; p++) {
-        int want = p < W * H ? ycol(i) : ((p - W * H) & 1) ? vcol(i) : ucol(i), d = abs(f[p] - want);
-        if (d > g_maxdiff) g_maxdiff = d;
-        if (d > 2) L->values_ok = 0;
-    }
+typedef struct {
+    int n, eos, order_ok, values_ok, sizes_ok, format_first; int64_t pts[64], last_pts;   // outputs: video frames or audio chunks
+    int pic[64];                                                                            // video: which frame's picture each output holds (-1 none of them)
+    long bytes, nsamp; double sumsq; int sign, turns;                                       // audio: PCM bytes, left samples, their squares, sign changes past ±1000
+} outlog;
+#define OUTLOG {.order_ok = 1, .values_ok = 1, .sizes_ok = 1, .format_first = 1, .last_pts = -1}
+static int g_maxdiff;
+static int frame_diff(const uint8_t *f, int i) {   // the largest difference of an NV12 frame from frame i as it was encoded
+    uint8_t c[3]; colour(i, c); int worst = 0;
+    for (int p = 0; p < W * H + W * H / 2; p++) { int d = abs(f[p] - (p < W * H ? c[0] : ((p - W * H) & 1) ? c[2] : c[1])); if (d > worst) worst = d; }
+    return worst;
 }
-// Feeds every sample of the selected track into the decoder (end of stream after the last) and takes outputs; tick_ns > 0: one dm_movie_tick per
-// round with the guest clock advanced by tick_ns, outputs taken after each tick (one game frame)
-static void run(obj *ex, obj *dec, outlog *L, uint64_t tick_ns, int rounds) {
-    static uint8_t frame[W * H * 2]; int fed_eos = 0;
-    L->order_ok = L->values_ok = 1;
-    for (int r = 0; r < rounds && !L->eos; r++) {
-        for (;;) {   // inputs while the decoder has buffers
-            if (fed_eos) break;
-            int32_t idx, rem; if (VCALL(dec, D_ACQIN, f_ii, &idx, &rem) != ST_OK) break;
+static void check_frame(const uint8_t *f, int size, int64_t pts, outlog *L) {   // (the output is entry L->n)
+    int i = -1, pic = -1; for (int k = 0; k < N; k++) if (llabs(pts - pts_us(k)) <= 1) i = k;
+    if (size != W * H * 3 / 2) { L->sizes_ok = L->values_ok = 0; if (L->n < 64) L->pic[L->n] = -1; return; }
+    for (int k = 0; k < N && pic < 0; k++) if (frame_diff(f, k) <= TOL) pic = k;
+    if (L->n < 64) L->pic[L->n] = pic;
+    if (i < 0) { L->values_ok = 0; return; }
+    int d = frame_diff(f, i); if (d > TOL) L->values_ok = 0; else if (d > g_maxdiff) g_maxdiff = d;
+}
+static void check_pcm(const uint8_t *f, int size, outlog *L) {
+    if (size <= 0 || size > 1024 * 4 || size % 4) L->sizes_ok = 0;
+    for (int k = 0; k + 3 < size; k += 4) {
+        int s = (int16_t)(f[k] | f[k + 1] << 8); L->sumsq += (double)s * s; L->nsamp++;
+        int sg = s > 1000 ? 1 : s < -1000 ? -1 : L->sign;
+        if (L->sign && sg != L->sign) L->turns++;
+        L->sign = sg;
+    }
+    L->bytes += size;
+}
+// Feeds the selected track's samples into the decoder and takes every output; at the extractor's end of stream it sends the end-of-stream input
+// (send_eos) or stops feeding (the game looping instead). kind: 1 video values checked, 0 audio, -1 nothing checked (a real movie)
+static void run(obj *ex, obj *dec, outlog *L, int kind, int send_eos) {
+    static uint8_t frame[4 << 20]; int fed_end = 0, idle = 0;
+    while (!L->eos && idle < 3) {
+        int did = 0;
+        while (!fed_end) {
+            uint64_t ti; int32_t idx, rem;
+            if (VCALL(ex, E_TRACK, f_pu64, &ti) == ST_EOS) {
+                if (send_eos) { if (VCALL(dec, D_ACQIN, f_ii, &idx, &rem) != ST_OK) break; VCALL(dec, D_SEND, f_send, idx, 0, 0, (int64_t)0, (uint32_t)BF_EOS); }
+                fed_end = 1; did = 1; break;
+            }
+            if (VCALL(dec, D_ACQIN, f_ii, &idx, &rem) != ST_OK) break;
             mvbuf in; VCALL(dec, D_GETIN, f_ib, idx, &in);
             int64_t t = 0; void *meta = NULL; int32_t sync = 0;
-            if (VCALL(ex, E_READ, f_buf, &in) == ST_EOS) { VCALL(dec, D_SEND, f_send, idx, 0, 0, 0, BF_EOS); fed_eos = 1; break; }
-            VCALL(ex, E_TIME, f_p64, &t); VCALL(ex, E_META, f_md, &meta); mv_FindInt32(&meta, "is-sync-frame", &sync); mv_MediaDataD(&meta);
-            VCALL(dec, D_SEND, f_send, idx, in.off, in.size, t, sync ? BF_SYNC : 0);
-            VCALL(ex, E_ADVANCE, f_v);
+            VCALL(ex, E_READ, f_buf, &in); VCALL(ex, E_TIME, f_p64, &t); VCALL(ex, E_META, f_md, &meta); mv_FindInt32(&meta, "is-sync-frame", &sync); mv_MediaDataD(&meta);
+            VCALL(dec, D_SEND, f_send, idx, in.off, in.size, t, (uint32_t)(sync ? BF_SYNC : 0));
+            VCALL(ex, E_ADVANCE, f_v); did = 1;
         }
-        if (tick_ns) { t_clock += tick_ns; dm_movie_tick(); }
-        for (int k = 0; k < (tick_ns ? 2 : 64); k++) {
+        for (;;) {
             int32_t o, rem; int64_t pts; uint32_t fl;
             if (VCALL(dec, D_ACQOUT, f_acq, &o, &pts, &fl, &rem) != ST_OK) break;
-            if (tick_ns && k) L->extra++;
             mvbuf ob = {frame, sizeof frame, 0, 0};
-            VCALL(dec, D_GETOUT, f_ib, o, &ob);
+            VCALL(dec, D_GETOUT, f_ib, o, &ob); did = 1;
             if (fl & BF_EOS) L->eos = 1;
-            else { if (!t_events[EV_FORMAT]) L->format_first = 0; if (L->n && pts <= L->pts[L->n - 1]) L->order_ok = 0; if (L->n < 64) L->pts[L->n] = pts; L->n++; check_frame(frame, pts, L); }
+            else {
+                if (!t_events[EV_FORMAT]) L->format_first = 0;
+                if (pts < L->last_pts) L->order_ok = 0;
+                L->last_pts = pts; if (L->n < 64) L->pts[L->n] = pts;
+                if (kind == 1) check_frame(frame, ob.size, pts, L); else if (kind == 0) check_pcm(frame, ob.size, L);
+                L->n++;
+            }
             VCALL(dec, D_RELEASE, f_rel, o);
         }
+        idle = did ? 0 : idle + 1;
     }
 }
-static obj *new_decoder(void *md) {
-    obj *d = calloc(1, sizeof *d); mv_Decoder((void **)d, DEC_VP9, 4, 1, 16);
-    static void *ev[4];   // the game's DecoderEvents: registered empty, filled in after (blade2-mobile's game; plan item 64k)
-    memset(ev, 0, sizeof ev); VCALL(d, D_EVENTS, f_md, ev);
+static obj *new_decoder(int type, int fmt, void *md, int *status) {
+    obj *d = calloc(1, sizeof *d); mv_Decoder((void **)d, type, fmt, 1, 16);
+    void **ev = calloc(4, sizeof *ev);   // the game's DecoderEvents: registered empty, filled in after (blade2-mobile's game; plan item 64k)
+    VCALL(d, D_EVENTS, f_md, ev);
     for (int i = 0; i < 4; i++) ev[i] = &t_event_obj[i];
-    if (VCALL(d, D_CONFIGURE, f_md, &md) != ST_OK) return NULL;
+    *status = VCALL(d, D_CONFIGURE, f_md, &md);
     return d;
 }
 
-static int probe(const char *file) {   // a real movie: every frame through the extractor and decoder, no pacing
-    char path[600]; const char *slash = strrchr(file, '/');
-    snprintf(t_dir, sizeof t_dir, "%.*s", slash ? (int)(slash - file) : 1, slash ? file : ".");
-    snprintf(path, sizeof path, "content:/%s", slash ? slash + 1 : file);
-    obj ex = {0}; mv_Extractor((void **)&ex, 3);
-    uint64_t t0 = now_ns();
-    int st = VCALL(&ex, E_SETPATH, f_ptr, path); printf("SetDataSource %s → %#x (%.1f ms)\n", path, st, (now_ns() - t0) / 1e6);
-    if (st) return 1;
-    void *md = NULL; VCALL(&ex, E_CONFIG, f_imd, 0, &md); VCALL(&ex, E_SELECT, f_int, 0);
-    const char *mime = ""; int32_t w = 0, h = 0, mis = 0; int64_t dur = 0;
-    mv_FindString(&md, "mime", &mime); mv_FindInt32(&md, "width", &w); mv_FindInt32(&md, "height", &h); mv_FindInt32(&md, "max-input-size", &mis); mv_FindInt64(&md, "durationUs", &dur);
-    printf("track 0: %s %dx%d, max input %d bytes, %.3f s\n", mime, w, h, mis, dur / 1e6);
-    g_vx_pace = 0;
-    obj *dec = new_decoder(md); if (!dec) { printf("Configure failed\n"); return 1; }
-    VCALL(dec, D_START, f_v);
-    size_t fb = (size_t)w * h * 3 / 2; uint8_t *frame = malloc(fb); int n = 0, eos = 0, fed_eos = 0; int64_t last = -1, gaps = 0; uint64_t td = now_ns();
-    const char *tmp = getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp";
-    while (!eos) {
-        for (;;) {
-            if (fed_eos) break;
-            int32_t idx, rem; if (VCALL(dec, D_ACQIN, f_ii, &idx, &rem) != ST_OK) break;
-            mvbuf in; VCALL(dec, D_GETIN, f_ib, idx, &in); int64_t t = 0;
-            if (VCALL(&ex, E_READ, f_buf, &in) == ST_EOS) { VCALL(dec, D_SEND, f_send, idx, 0, 0, 0, BF_EOS); fed_eos = 1; break; }
-            VCALL(&ex, E_TIME, f_p64, &t); VCALL(dec, D_SEND, f_send, idx, in.off, in.size, t, 0); VCALL(&ex, E_ADVANCE, f_v);
-        }
-        int32_t o, rem; int64_t pts; uint32_t fl;
-        if (VCALL(dec, D_ACQOUT, f_acq, &o, &pts, &fl, &rem) != ST_OK) { if (fed_eos) { printf("no end of stream\n"); break; } continue; }
-        mvbuf ob = {frame, fb, 0, 0}; VCALL(dec, D_GETOUT, f_ib, o, &ob);
-        if (fl & BF_EOS) eos = 1;
-        else {
-            if (last >= 0 && pts - last > 40000) gaps++;
-            last = pts;
-            if (n == 0 || n == 3000 || n == 6000) {   // NV12 → RGB (BT.709, video range) as PPM
-                char out[700]; snprintf(out, sizeof out, "%s/movie_%05d.ppm", tmp, n); FILE *f = fopen(out, "wb"); fprintf(f, "P6\n%d %d\n255\n", w, h);
-                for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
-                    double Y = 1.164 * (frame[y * w + x] - 16), U = frame[w * h + (y / 2) * w + (x & ~1)] - 128, V = frame[w * h + (y / 2) * w + (x & ~1) + 1] - 128;
-                    double rgb[3] = {Y + 1.793 * V, Y - 0.213 * U - 0.533 * V, Y + 2.112 * U};
-                    for (int c = 0; c < 3; c++) fputc(rgb[c] < 0 ? 0 : rgb[c] > 255 ? 255 : (int)rgb[c], f);
-                }
-                fclose(f); printf("wrote %s (frame %d, %.3f s)\n", out, n, pts / 1e6);
-            }
-            n++;
-        }
-        VCALL(dec, D_RELEASE, f_rel, o);
+static int probe(const char *file) {   // a real movie: every video frame and audio chunk through the extractor and the decoders
+    t_probe = file; obj ex = {0}; mv_Extractor((void **)&ex, 0);
+    if (VCALL(&ex, E_SETPATH, f_ptr, "content:/probe") != ST_OK) { printf("%s: no audio / video track this path reads\n", file); return 1; }
+    int32_t nt = 0; VCALL(&ex, E_COUNT, f_i, &nt);
+    for (int i = 0; i < nt; i++) {
+        void *md = NULL; const char *mime = ""; int st = 0;
+        VCALL(&ex, E_CONFIG, f_imd, i, &md); mv_FindString(&md, "mime", &mime);
+        int video = !strcmp(mime, "video/avc"), audio = !strcmp(mime, "audio/mp4a-latm");
+        if (!video && !audio) { printf("track %d: %s, not decoded\n", i, mime); continue; }
+        obj *d = new_decoder(video ? DEC_AVC : DEC_AAC, video ? 4 : 1, md, &st);
+        if (st != ST_OK) { printf("track %d: %s, Configure %#x\n", i, mime, st); continue; }
+        VCALL(&ex, E_SELECT, f_int, i); VCALL(&ex, E_SEEK, f_64, (int64_t)0); VCALL(d, D_START, f_v);
+        outlog L = OUTLOG; uint64_t t0 = now_ns(); run(&ex, d, &L, -1, 1); double ms = (double)(now_ns() - t0) / 1e6;
+        printf("track %d: %s, %d %s, end of stream %d, times in order %d, the last at %.3f s, %.2f ms each\n", i, mime, L.n, video ? "frames" : "chunks", L.eos, L.order_ok,
+               (double)L.last_pts / 1e6, L.n ? ms / L.n : 0);
+        VCALL(&ex, E_UNSELECT, f_int, i);
     }
-    vx_t *v = VX((void **)dec);
-    printf("%d frames, %llu decode errors, %lld gaps over 40 ms, decode %.2f ms per frame, %.1f s wall\n", n, (unsigned long long)v->errors, (long long)gaps,
-           v->frames ? v->decode_ns / 1e6 / (double)v->frames : 0.0, (now_ns() - td) / 1e9);
-    return v->errors || !eos;
+    return 0;
 }
-
+static int count_copies(void) {   // the media cache's temporary copies in DM_TEMP (this run's own directory)
+    DIR *d = opendir(t_dir); struct dirent *e; int n = 0;
+    while (d && (e = readdir(d))) if (!strncmp(e->d_name, "movie-", 6)) n++;
+    if (d) closedir(d);
+    return n;
+}
 static void t_clean(void) {   // (the files main writes, and their directory)
-    char f[700]; snprintf(f, sizeof f, "%s/t.webm", t_dir); unlink(f); snprintf(f, sizeof f, "%s/junk.webm", t_dir); unlink(f); rmdir(t_dir);
+    DIR *d = opendir(t_dir); struct dirent *e; char f[1024];
+    while (d && (e = readdir(d))) if (e->d_name[0] != '.') { snprintf(f, sizeof f, "%s/%s", t_dir, e->d_name); unlink(f); }
+    if (d) closedir(d);
+    rmdir(t_dir);
 }
+#define SUMMARY() printf("== %d checks, %d failed ==\n", g_n, g_fail)
 int main(int argc, char **argv) {
     if (argc > 1) return probe(argv[1]);
     const char *tmp = getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp";
     snprintf(t_dir, sizeof t_dir, "%s/t_movie.%d.d", tmp, (int)getpid()); mkdir(t_dir, 0755); atexit(t_clean);   // one per process: its variants (t_movie_evcopy) run beside it
-    char file[700]; snprintf(file, sizeof file, "%s/t.webm", t_dir);
-    EXPECT("libvpx encodes 12 VP9 frames, key frames 0 and 6", 1, encode() && g_key[0] && g_key[6] && !g_key[1] && !g_key[4]);
-    write_webm(file);
-    { char junk[700]; snprintf(junk, sizeof junk, "%s/junk.webm", t_dir); FILE *f = fopen(junk, "wb"); if (!f) { perror(junk); return 1; } fputs("not an EBML file at all", f); fclose(f); }
+    setenv("DM_TEMP", t_dir, 1);   // where the media cache puts its copies
+    char file[700], link2[700], junk[700];
+    snprintf(file, sizeof file, "%s/t.mp4", t_dir); snprintf(link2, sizeof link2, "%s/p.mp4", t_dir); snprintf(junk, sizeof junk, "%s/junk.mp4", t_dir);
+    int made = t_movie_clip(file, W, H, FPS, N, KEY, colour, HZ);
+    EXPECT("the clip is written: 12 frames of H.264 and half a second of AAC in an MP4", 1, made);
+    if (!made || link(file, link2)) { g_fail++; SUMMARY(); return 1; }
+    { FILE *f = fopen(junk, "wb"); if (!f) { perror(junk); return 1; } fputs("not a movie at all", f); fclose(f); }
 
-    // Extractor
-    obj ex = {0}; mv_Extractor((void **)&ex, 3);
-    obj bad = {0}; mv_Extractor((void **)&bad, 3);
-    EXPECT("SetDataSource(path) on a file that is not EBML: UnsupportedMediaType", ST_UNSUPPORTED_MEDIA, VCALL(&bad, E_SETPATH, f_ptr, "content:/junk.webm"));
-    EXPECT("SetDataSource(path) on a missing file: UnsupportedMediaType", ST_UNSUPPORTED_MEDIA, VCALL(&bad, E_SETPATH, f_ptr, "content:/none.webm"));
-    EXPECT("SetDataSource(\"content:/t.webm\")", ST_OK, VCALL(&ex, E_SETPATH, f_ptr, "content:/t.webm"));
-    int32_t nt = 0; VCALL(&ex, E_COUNT, f_i, &nt); EXPECT("one track", 1, nt);
-    void *md = NULL; VCALL(&ex, E_CONFIG, f_imd, 0, &md);
-    const char *mime = ""; int32_t w = 0, h = 0, mis = 0; int64_t dur = 0; size_t maxpkt = 0;
-    for (int i = 0; i < N; i++) if (g_pkt_n[i] > maxpkt) maxpkt = g_pkt_n[i];
-    mv_FindString(&md, "mime", &mime); mv_FindInt32(&md, "width", &w); mv_FindInt32(&md, "height", &h); mv_FindInt32(&md, "max-input-size", &mis); mv_FindInt64(&md, "durationUs", &dur);
-    EXPECT("track mime is video/x-vnd.on2.vp9", 0, strcmp(mime, "video/x-vnd.on2.vp9"));
-    EXPECT("track width, height", W * 10000 + H, w * 10000 + h);
-    EXPECT("max-input-size = largest packet", (long long)maxpkt, mis);
-    EXPECT("durationUs from Info Duration", 400000, dur);
-    VCALL(&ex, E_SELECT, f_int, 0);
-    int bytes_ok = 1, time_ok = 1, sync_ok = 1, k = 0;
+    // Extractor, through the game's stream reader (a temporary copy, shared by the Extractors on one path)
+    t_reader rdr = {t_reader_vt, 0, 0};
+    obj bad = {0}; mv_Extractor((void **)&bad, 0);
+    EXPECT("SetDataSource(reader) when the reader cannot open the path: UnsupportedMediaType", ST_UNSUPPORTED_MEDIA, VCALL(&bad, E_SETREADER, f_rdr, &rdr, "content:/none.mp4"));
+    EXPECT("... and on a file that is no movie: UnsupportedMediaType, its copy removed", ST_UNSUPPORTED_MEDIA * 10,
+           VCALL(&bad, E_SETREADER, f_rdr, &rdr, "content:/junk.mp4") * 10 + count_copies());
+    rdr.opens = rdr.closes = 0;
+    obj ex = {0}, ex2 = {0}; mv_Extractor((void **)&ex, 0); mv_Extractor((void **)&ex2, 0);
+    EXPECT("SetDataSource(reader, \"content:/t.mp4\")", ST_OK, VCALL(&ex, E_SETREADER, f_rdr, &rdr, "content:/t.mp4"));
+    EXPECT("a second Extractor on the same path", ST_OK, VCALL(&ex2, E_SETREADER, f_rdr, &rdr, "content:/t.mp4"));
+    EXPECT("... shares the first one's copy: the file opened once, closed once, one copy in DM_TEMP", 111, rdr.opens * 100 + rdr.closes * 10 + count_copies());
+    int32_t nt = 0; VCALL(&ex, E_COUNT, f_i, &nt); EXPECT("two tracks", 2, nt);
+    if (nt != 2) { SUMMARY(); return 1; }
+    void *md[2] = {NULL, NULL}; const char *mime[2] = {"", ""};
+    for (int i = 0; i < 2; i++) { VCALL(&ex, E_CONFIG, f_imd, i, &md[i]); mv_FindString(&md[i], "mime", &mime[i]); }
+    int vt = !strcmp(mime[0], "video/avc") ? 0 : 1, at = 1 - vt;
+    int32_t w = 0, h = 0, fr = 0, ch = 0, sr = 0; int64_t dur = 0;
+    mv_FindInt32(&md[vt], "width", &w); mv_FindInt32(&md[vt], "height", &h); mv_FindInt32(&md[vt], "frame-rate", &fr); mv_FindInt64(&md[vt], "durationUs", &dur);
+    mv_FindInt32(&md[at], "channel-count", &ch); mv_FindInt32(&md[at], "sample-rate", &sr);
+    EXPECT("video track: video/avc, 320 x 240, 24 frames per second", 1, !strcmp(mime[vt], "video/avc") && w == W && h == H && fr == FPS);
+    EXPECT("... half a second long (within a frame)", 1, llabs(dur - 500000) <= 1000000 / FPS);
+    EXPECT("audio track: audio/mp4a-latm, 2 channels, 48 kHz", 1, !strcmp(mime[at], "audio/mp4a-latm") && ch == 2 && sr == 48000);
+    VCALL(&ex, E_SELECT, f_int, vt);
+    int k = 0, time_ok = 1, filled = 1, sync0 = -1, sync1 = -1, key_by = -1;
     for (;; k++) {
-        static uint8_t sb[1 << 16]; mvbuf b = {sb, sizeof sb, 0, 0}; int64_t t = -1; void *meta = NULL; int32_t sync = -1;
+        static uint8_t sb[W * H * 2]; mvbuf b = {sb, sizeof sb, 0, 0}; int64_t t = -1; void *meta = NULL; int32_t sync = -1;
         if (VCALL(&ex, E_READ, f_buf, &b) != ST_OK) break;
         VCALL(&ex, E_TIME, f_p64, &t); VCALL(&ex, E_META, f_md, &meta); mv_FindInt32(&meta, "is-sync-frame", &sync); mv_MediaDataD(&meta);
-        if (k >= N || (size_t)b.size != g_pkt_n[k] || memcmp(sb, g_pkt[k], g_pkt_n[k])) bytes_ok = 0;
-        if (k < N && t != pts_ms(k) * 1000) time_ok = 0;
-        if (k < N && sync != (k == 0 || k == 6)) sync_ok = 0;   // frame 4 sits in a BlockGroup with a ReferenceBlock
+        if (k >= N || llabs(t - pts_us(k)) > 1) time_ok = 0;
+        if (b.size <= 0) filled = 0;
+        if (k == 0) sync0 = sync;
+        if (k == 1) sync1 = sync;
+        if (k >= 1 && sync == 1 && key_by < 0) key_by = k;
         VCALL(&ex, E_ADVANCE, f_v);
     }
-    EXPECT("Read: 12 samples through three Clusters (the second of unknown size)", N, k);
-    EXPECT("Read: each sample is the encoder's packet byte for byte", 1, bytes_ok);
-    EXPECT("GetSampleTime: Cluster Timestamp + block timestamp, in us", 1, time_ok);
-    EXPECT("is-sync-frame: SimpleBlock key flag; BlockGroup with ReferenceBlock is not", 1, sync_ok);
-    int64_t t = -1; VCALL(&ex, E_SEEK, f_64, (int64_t)250000); VCALL(&ex, E_TIME, f_p64, &t);
-    EXPECT("SeekTo 250 ms starts at the key frame before it (frame 6, 200 ms)", pts_ms(6) * 1000, t);
+    EXPECT("Read: 12 video samples, none empty", N * 10 + 1, k * 10 + filled);
+    EXPECT("GetSampleTime: sample i at i / 24 s", 1, time_ok);
+    EXPECT("is-sync-frame: the first sample is a key frame, the second is not, the next key frame comes by the seventh", 1, sync0 == 1 && sync1 == 0 && key_by >= 1 && key_by <= KEY);
+    { int64_t t = -1; void *meta = NULL; int32_t sync = -1;
+      VCALL(&ex, E_SEEK, f_64, (int64_t)300000); VCALL(&ex, E_TIME, f_p64, &t); VCALL(&ex, E_META, f_md, &meta); mv_FindInt32(&meta, "is-sync-frame", &sync); mv_MediaDataD(&meta);
+      EXPECT("SeekTo 300 ms: the read goes on from the key frame at or before it", 1, sync == 1 && t >= 0 && t <= 300000 && t >= pts_us(key_by));
+      printf("(key frames 0 and %d; after SeekTo 300 ms the next sample is at %lld us)\n", key_by, (long long)t); }
+    VCALL(&ex, E_SELECT, f_int, at); VCALL(&ex, E_SEEK, f_64, (int64_t)0);
+    int nv = 0, na = 0, back = 0; int64_t prev = -1;
+    for (;;) {
+        uint64_t ti = 9; int64_t t = -1;
+        if (VCALL(&ex, E_TRACK, f_pu64, &ti) != ST_OK) break;
+        VCALL(&ex, E_TIME, f_p64, &t);
+        if ((int)ti == vt) nv++; else na++;
+        if (t < prev - 50000) back = 1;
+        if (t > prev) prev = t;
+        VCALL(&ex, E_ADVANCE, f_v);
+    }
+    EXPECT("both tracks selected: 12 video samples among the audio packets, by time (none more than 50 ms behind)", N * 10, nv * 10 + back);
+    EXPECT("... half a second of AAC packets (1024 frames each: 23 to 27)", 1, na >= 23 && na <= 27);
+    printf("(%d audio packets)\n", na);
 
-    // Decoder, no pacing
-    obj odd = {0}; mv_Decoder((void **)&odd, DEC_VP9, 4, 1, 16);
-    void *avc = NULL; mv_MediaData(&avc); md_str(md_get(&avc), "mime", "video/avc"); md_i32(md_get(&avc), "width", W); md_i32(md_get(&avc), "height", H);
-    EXPECT("VP9 decoder configured with video/avc: UnsupportedMediaType", ST_UNSUPPORTED_MEDIA, VCALL(&odd, D_CONFIGURE, f_md, &avc));
-    md_str(md_get(&avc), "mime", "video/x-vnd.on2.vp9"); md_i32(md_get(&avc), "width", W + 1);
-    EXPECT("VP9 decoder with an odd width: InvalidDimensions", ST_INVALID_DIMENSIONS, VCALL(&odd, D_CONFIGURE, f_md, &avc));
-    g_vx_pace = 0; memset(t_events, 0, sizeof t_events);
-    obj *dec = new_decoder(md);
-    EXPECT("Configure with the extractor's track configuration", 1, dec != NULL);
-    if (!dec) { printf("== %d checks, %d failed ==\n", g_n, g_fail + 1); return 1; }
+    // Extractor by path: the file opened in place, no copy
+    obj exp = {0}, exn = {0}; mv_Extractor((void **)&exp, 0); mv_Extractor((void **)&exn, 0);
+    EXPECT("SetDataSource(\"content:/none.mp4\"), a missing file: UnsupportedMediaType", ST_UNSUPPORTED_MEDIA, VCALL(&exn, E_SETPATH, f_ptr, "content:/none.mp4"));
+    EXPECT("SetDataSource(\"content:/p.mp4\")", ST_OK, VCALL(&exp, E_SETPATH, f_ptr, "content:/p.mp4"));
+    nt = 0; VCALL(&exp, E_COUNT, f_i, &nt);
+    EXPECT("... two tracks, read in place: still one copy in DM_TEMP", 21, nt * 10 + count_copies());
+
+    // Decoders that refuse
+    int st = 0; void *none = NULL; mv_MediaData(&none);
+    VCALL(&ex, E_UNSELECT, f_int, at);
+    new_decoder(DEC_AAC, 1, md[vt], &st); EXPECT("an AAC decoder configured with the video track: UnsupportedMediaType", ST_UNSUPPORTED_MEDIA, st);
+    new_decoder(DEC_VP9, 4, md[vt], &st); EXPECT("a VP9 decoder (nothing decodes it) configured with the video track: UnsupportedMediaType", ST_UNSUPPORTED_MEDIA, st);
+    new_decoder(DEC_AVC, 4, none, &st); EXPECT("Configure without a track configuration: InvalidConfiguration", ST_INVALID_CONFIG, st);
+
+    // H.264 to NV12
+    memset(t_events, 0, sizeof t_events);
+    obj *dec = new_decoder(DEC_AVC, 4, md[vt], &st);
+    EXPECT("an H.264 decoder configured with the video track", ST_OK, st);
+    if (st != ST_OK) { SUMMARY(); return 1; }
     int32_t osz = 0, oal = 0; VCALL(dec, D_OUTSIZE, f_ii, &osz, &oal);
     EXPECT("GetOutputBufferSize: one NV12 frame, alignment 256", W * H * 3 / 2 * 1000 + 256, osz * 1000 + oal);
-    EXPECT("Start signals input available", 1, (VCALL(dec, D_START, f_v), t_events[EV_INPUT] > 0));
+    VCALL(dec, D_START, f_v);
+    EXPECT("Start signals input available and format changed (the events filled in after they were registered)", 11, (t_events[EV_INPUT] > 0) * 10 + (t_events[EV_FORMAT] == 1));
     VCALL(&ex, E_SEEK, f_64, (int64_t)0);
-    outlog L = {.format_first = 1}; run(&ex, dec, &L, 0, 200);
+    outlog L = OUTLOG; run(&ex, dec, &L, 1, 1);
+    int at_times = L.n == N; for (int i = 0; i < L.n && i < N; i++) if (llabs(L.pts[i] - pts_us(i)) > 1) at_times = 0;
     EXPECT("12 frames decoded, then the end-of-stream output", N * 10 + 1, L.n * 10 + L.eos);
-    EXPECT("output presentation times in order", 1, L.order_ok);
-    EXPECT("NV12 values within 2 of the encoder input (Y, then Cb Cr interleaved)", 1, L.values_ok);
-    EXPECT("format changed once, before the first output", 11, t_events[EV_FORMAT] * 10 + L.format_first);
-    {   // after the end of stream the game sends every input buffer it can take back with the end-of-stream flag (main+0x2b45338); they stay in
-        // the decoder (ACodec postFillThisBuffer, subsdk0 0x2bd214), so this ends and no input event is signalled; Flush gives all of them back
-        int ev = t_events[EV_INPUT], sent = 0; int32_t idx, rem;
-        while (sent < 16 && VCALL(dec, D_ACQIN, f_ii, &idx, &rem) == ST_OK) { VCALL(dec, D_SEND, f_send, idx, 0, 0, 0, BF_EOS); sent++; }
-        EXPECT("after the end of stream, inputs sent back with the end-of-stream flag stay in the decoder: no input event, none to take", 0,
-               (sent >= 16) * 10 + (t_events[EV_INPUT] != ev));
-        int32_t o, orem; int64_t opts; uint32_t ofl;
-        EXPECT("... and no second end-of-stream output", ST_OUT_NOT_AVAILABLE, VCALL(dec, D_ACQOUT, f_acq, &o, &opts, &ofl, &orem));
-        int back = 0; VCALL(dec, D_FLUSH, f_v);
-        while (back < 16 && VCALL(dec, D_ACQIN, f_ii, &idx, &rem) == ST_OK) back++;
-        EXPECT("Flush gives every input buffer back and signals input available", 41, back * 10 + (t_events[EV_INPUT] > ev));
-    }
+    EXPECT("... frame i at i / 24 s, in order, each one NV12 frame", 111, L.order_ok * 100 + at_times * 10 + L.sizes_ok);
+    EXPECT("... NV12 values within 4 of what was encoded (Y, then Cb Cr interleaved)", 1, L.values_ok);
+    EXPECT("... output available signalled, format changed before the first output", 11, (t_events[EV_OUTPUT] > 0) * 10 + L.format_first);
+    { int32_t o, orem; int64_t opts; uint32_t ofl;
+      EXPECT("... and no second end-of-stream output", ST_OUT_NOT_AVAILABLE, VCALL(dec, D_ACQOUT, f_acq, &o, &opts, &ofl, &orem)); }
     void *of = NULL; VCALL(dec, D_OUTFMT, f_md, &of);
-    const char *om = ""; int32_t uvo = 0, cl = -1, ct = -1, cr = -1, cb = -1; mv_FindString(&of, "mime", &om); mv_FindInt32(&of, "nv12-uv-offset", &uvo); mv_FindRect(&of, "crop", &cl, &ct, &cr, &cb);
-    EXPECT("output format: video/raw, nv12-uv-offset = w*h, crop inclusive", 1, !strcmp(om, "video/raw") && uvo == W * H && cl == 0 && ct == 0 && cr == W - 1 && cb == H - 1);
-    printf("(largest NV12 difference from the encoder input: %lld)\n", (long long)g_maxdiff);
+    int32_t stride = 0, uvo = 0, cl = -1, ct = -1, cr = -1, cb = -1; mv_FindInt32(&of, "stride", &stride); mv_FindInt32(&of, "nv12-uv-offset", &uvo); mv_FindRect(&of, "crop", &cl, &ct, &cr, &cb);
+    EXPECT("output format: stride = width, nv12-uv-offset = width x height, crop inclusive", 1, stride == W && uvo == W * H && cl == 0 && ct == 0 && cr == W - 1 && cb == H - 1);
+    printf("(largest NV12 difference from what was encoded: %d)\n", g_maxdiff);
 
-    // Decoder, paced: one game frame = one dm_movie_tick
-    g_vx_pace = 1; memset(t_events, 0, sizeof t_events); t_clock = 1000000000ull;
-    obj *pd = new_decoder(md); VCALL(pd, D_START, f_v); VCALL(&ex, E_SEEK, f_64, (int64_t)0);
-    outlog P = {.format_first = 1}; run(&ex, pd, &P, 33333333ull, 40);
-    int on_time = 1; for (int i = 0; i < P.n && i < N; i++) if (P.pts[i] != pts_ms(i) * 1000) on_time = 0;
-    EXPECT("paced at 30 game frames per second: every frame, in order", N * 10 + 1, P.n * 10 + on_time);
-    EXPECT("... at most one frame handed over per game frame", 0, P.extra);
-    obj *sd = new_decoder(md); VCALL(sd, D_START, f_v); VCALL(&ex, E_SEEK, f_64, (int64_t)0); t_clock = 5000000000ull;
-    outlog S = {.format_first = 1}; run(&ex, sd, &S, 100000000ull, 40);
-    int keeps = 1; for (int i = 1; i < S.n; i++) if (S.pts[i] < (int64_t)i * 100000 - 50000) keeps = 0;   // shown frame i at about i × 100 ms
-    EXPECT("at 10 game frames per second late frames are dropped: fewer frames", 1, S.n < N && S.n >= 4);
-    EXPECT("... and the picture keeps time (frame shown at tick i is from about i x 100 ms)", 1, keeps);
-    printf("(10 fps: %d of %d frames shown, %llu dropped)\n", S.n, N, (unsigned long long)VX((void **)sd)->dropped);
-    printf("== %d checks, %d failed ==\n", g_n, g_fail);
+    // A loop: the game seeks back at the end of the stream and feeds on, with no end-of-stream input. The decoder learns that its read has ended
+    // from the first input of the second round (no output for it) and reads again from the time of the next one, sample 1's: 41666 us, a little
+    // before frame 1's 1 / 24 s, so AVFoundation gives frame 0 first, at that time (a range that starts inside a frame's display time begins with
+    // that frame). Every picture comes once more, the first of them one frame's time late.
+    obj *ld = new_decoder(DEC_AVC, 4, md[vt], &st); VCALL(ld, D_START, f_v); VCALL(&ex, E_SEEK, f_64, (int64_t)0);
+    outlog A = OUTLOG; run(&ex, ld, &A, 1, 0);
+    VCALL(&ex, E_SEEK, f_64, (int64_t)0);
+    outlog B = OUTLOG; run(&ex, ld, &B, 1, 1);
+    EXPECT("a loop: the first round gives 12 frames and no end of stream", N * 10, A.n * 10 + A.eos);
+    int pics = B.n == N, late = B.n == N; for (int i = 0; i < B.n && i < N; i++) { if (B.pic[i] != i) pics = 0; if (llabs(B.pts[i] - pts_us(i ? i : 1)) > 1) late = 0; }
+    EXPECT("... the second gives all 12 again, then the end of stream", N * 10 + 1, B.n * 10 + B.eos);
+    EXPECT("... each picture once and in order; times in order, frame 0's that of frame 1", 111, pics * 100 + B.order_ok * 10 + late);
+
+    // Flush
+    obj *fd = new_decoder(DEC_AVC, 4, md[vt], &st); VCALL(fd, D_START, f_v); VCALL(&ex, E_SEEK, f_64, (int64_t)0);
+    int sent = 0;
+    for (; sent < 8; sent++) {
+        int32_t idx, rem; mvbuf in; int64_t t = 0;
+        if (VCALL(fd, D_ACQIN, f_ii, &idx, &rem) != ST_OK) break;
+        VCALL(fd, D_GETIN, f_ib, idx, &in); VCALL(&ex, E_READ, f_buf, &in); VCALL(&ex, E_TIME, f_p64, &t);
+        VCALL(fd, D_SEND, f_send, idx, in.off, in.size, t, (uint32_t)0); VCALL(&ex, E_ADVANCE, f_v);
+    }
+    { int32_t idx, rem, o, orem; int64_t opts; uint32_t ofl;
+      EXPECT("eight inputs sent and no output taken: four answered, four waiting, no input buffer free", 8 * 10000 + ST_IN_NOT_AVAILABLE, sent * 10000 + VCALL(fd, D_ACQIN, f_ii, &idx, &rem));
+      int ev = t_events[EV_INPUT], got = 0; VCALL(fd, D_FLUSH, f_v);
+      while (got < 16 && VCALL(fd, D_ACQIN, f_ii, &idx, &rem) == ST_OK) got++;
+      EXPECT("Flush gives every input buffer back and signals input available", 41, got * 10 + (t_events[EV_INPUT] > ev));
+      EXPECT("... and drops the decoded frames nobody took", ST_OUT_NOT_AVAILABLE, VCALL(fd, D_ACQOUT, f_acq, &o, &opts, &ofl, &orem)); }
+
+    // AAC to PCM16
+    VCALL(&ex, E_UNSELECT, f_int, vt); VCALL(&ex, E_SELECT, f_int, at); VCALL(&ex, E_SEEK, f_64, (int64_t)0);
+    memset(t_events, 0, sizeof t_events);
+    obj *ad = new_decoder(DEC_AAC, 1, md[at], &st);
+    EXPECT("an AAC decoder configured with the audio track", ST_OK, st);
+    osz = oal = 0; VCALL(ad, D_OUTSIZE, f_ii, &osz, &oal);
+    EXPECT("GetOutputBufferSize: 1024 stereo frames of PCM16, alignment 256", 4096 * 1000 + 256, osz * 1000 + oal);
+    VCALL(ad, D_START, f_v);
+    outlog P = OUTLOG; run(&ex, ad, &P, 0, 1);
+    double rms = P.nsamp ? sqrt(P.sumsq / (double)P.nsamp) : 0;
+    EXPECT("audio decoded to the end of the stream, in whole stereo frames, 1024 at most a chunk, times in order", 111, P.eos * 100 + P.sizes_ok * 10 + P.order_ok);
+    EXPECT("... about half a second of PCM (24000 frames within 2048)", 1, labs(P.bytes / 4 - 24000) <= 2048);
+    EXPECT("... the half-scale 440 Hz sine in it (RMS 11585 within 10 %, 440 sign changes within 5 %)", 1, fabs(rms - 11585) < 1159 && abs(P.turns - HZ) <= 22);
+    printf("(%ld frames of PCM in %d chunks, RMS %.0f, %d sign changes)\n", P.bytes / 4, P.n, rms, P.turns);
+
+    // The copy leaves with the last Extractor on its path
+    VCALL(&ex, E_DTOR, f_dtor);
+    int left = count_copies(); VCALL(&ex2, E_DTOR, f_dtor); VCALL(&exp, E_DTOR, f_dtor);
+    EXPECT("the copy stays while one Extractor uses it and is removed with the last", 10, left * 10 + count_copies());
+    SUMMARY();
     return g_fail != 0;
 }

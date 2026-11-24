@@ -112,7 +112,7 @@ What was ported from each project, by hand and credited where it lives in the co
   compute shaders, clears on a left-out attachment slot, the growable dirty-range table, QueueFinish without present waits, two translator fixes,
   vertex output defaults, invariance and the Metal compile cache; then precise SleepThread, env.txt switches, compressed files stored in the IPA,
   yield back-off (opt-in), targeted wakes, waits on upload completion and buffer releases, a per-thread pool cache, the dirty range kept per
-  texture, residency no-op skips, page runs, a spare texture for re-uploads and VP9 row multithreading; then the host race fixes, the c1 guard
+  texture, residency no-op skips, page runs, and a spare texture for re-uploads; then the host race fixes, the c1 guard
   by interval arithmetic, the yield back-off start, the guest CPU power line and the BAHS shader entries; later Maxwell's min / max / clamp results for a NaN operand on
   every GPU (`precise::`), and the SDK's address-region node area cut and two SDK return types; then the store-decision records for ten
   attachments, page protection under the pool-slot lock, an ID's cached view dropped with its texture, the AudioOut notifier's disarm and Game
@@ -123,7 +123,7 @@ What was ported from each project, by hand and credited where it lives in the co
   the shader translator, the attachment copies for draws that sample what their pass draws and code options applied at load.
 - **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)** ([ly05010419](https://github.com/ly05010419), MIT), a Tears of the Kingdom
   port on the same lineage: which RomFS files hold the shaders, virtual cores, clears drawn as quads, BC render targets through an auxiliary
-  texture, storage buffers addressed from uniform buffers, stale texture views, the behaviour and pacing of the VP9 movie decoder, the 60 fps
+  texture, storage buffers addressed from uniform buffers, stale texture views, the 60 fps
   controller words, the real-time frame step, its uncapped pacing and the scene render size, uniform snapshots, and from its graphics layer the pending-write table, keep-alive, chunked
   commits, render-state filter, upload staging pool, storage-followed and storage-shared textures, GPU write-back, uniform renaming,
   small-texture hashing and once-per-submission checks, layered passes, the encode stage, driver segment fills, block height and D16 clear fixes,
@@ -183,7 +183,7 @@ What was ported from each project, by hand and credited where it lives in the co
   MixWithOthers 46b63f4; the RomFS overlay 601258f; pending writes across submissions, acquire sync, keep-alive, chunked commits, uniform
   snapshot and rename, the render-state filter, one compute encoder, upload staging, identical registrations, the dirty-tracking cost, layered
   passes. The encode stage was implemented and left off that day (on by default on iOS since batch 82).
-- From the early plan list: the AudioRenderer and deferred texture binds (a267ec1), VP9 movies (a8c3ff1, `host/media/movie_webm.c`), small guest
+- From the early plan list: the AudioRenderer and deferred texture binds (a267ec1), small guest
   stacks (40, `host/runtime/hstack.S`), the BAHS shader split (`engines/bnsh/shader_extract.py`, 70cb843, 17766ae, 36), a texture at two colour slots
   (`rt_dup_slot`, through tomodachi-native's variant), face buttons by printed glyph (2; Kamisorara 8429dc1 was the earlier, wrong variant).
 
