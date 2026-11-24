@@ -473,21 +473,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 320 · b163-b177 · Tears of the Kingdom filling the iPhone's and the iPhone Duo's screen with the HUD at its own size, split into its parts.
   The route chosen by the user on 2026-11-09: S2Arm's, whole (graphics/widen and graphics/nvn/widen_glue.inc at 4c0bec5, Apache-2.0,
   written anew): 16:9 render targets wider by k, viewports × k, the projection's x row ÷ k, the UI layer at its size (2868x1320 → 2346x1080).
-- 320a · b163 · `gfx/nvn/core/widen.h` gives k and the widened sizes from the screen's size (S2Arm's rules written anew): k snapped so that
-  1920 gains an even number of columns (2868x1320: 426, k 1.221875; 1280 → 1564), Ky in rows for a screen narrower than 16:9 (the Duo's inner
-  2670x1878, 1.42: 270 rows over 1080, 1350; 720 → 900); 4:3 and square textures stay. A screen within 1 % of 16:9 widens nothing.
-- 320b · b164 · with `DM_WIDEN_SCREEN=<w>x<h>` (it stands in for a phone's screen on the Mac; off without it) a 16:9-family colour or depth
-  target the GPU draws into gets its Metal storage at the widened size while the game's view of its size stays, and the render-target heaps
-  are made and placed at their scale times k (or ky) (`gfx/nvn/mtl/textures.inc` tex_widen): with 2868x1320 a 1280x720 target 1564x720.
-- 320c · b165 · a pass whose targets are widened knows its exact widening (`g_pass.kx`, `ky`) and maps a draw's viewport and scissor and a
-  clear's scissor by it: a 3D draw's × k, the HUD in the centred 16:9 band, a full-canvas 2D page with black side bands. With 2868x1320 on the
-  M5 the game's viewport over the whole 1280x720 target reaches column 1560 of 1564.
-- 320d · b166, b167, b168 · `gfx/nvn/core/widen_rw.h` finds by shape perspective projections, view-projections and their inverses, screen
-  size and aspect pair in the blocks a draw binds and rewrites them in a copy for the draw, the x row divided by k (S2Arm's core rules,
-  Apache-2.0, written anew); `DM_WIDEN_RW=0` off. `wrw_maybe` first, then reuse by hash: the M5's submit thread 7.15 → 3.20 ms of CPU a frame.
-- 320e · part (b169) · sampling and copies: a `[nvn] widening's census` line every 300 frames (Tears of the Kingdom's prologue on the M5 has
-  no dispatch, clear or copy meeting widened storage); a whole-level clear on widened storage clears the whole level, a copy between textures
-  widened by the same ratio is mapped. Left: compute and a copy's destination widened after its source (S2Arm's rules) when a frame needs them.
 - 320f · b170, b171, b172 · the translator scales x and y apart (S2Arm's change, written anew in `third_party/ryujinx`): the support buffer
   gains `render_scale_y` (`mtl/args.inc`, `vk/vk_bind.c`); b171 the scales per draw; b172 every vertex shader ends with S2Arm's edge push,
   written anew (`EmitterContext.EmitWidenPush`, `widen_push`; chain 28614768c859): the title's side bands 187 / 105 of 255 → 0 / 0.
@@ -509,8 +494,9 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196-b208) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
+- 328 · part (b196-b209) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
   `games/totk`, `engines/bnsh`, the hooks only it implemented with what they drove (the frame step, uncapped pacing, ProMotion's 120 Hz, the
   movies' hold), sead's heaps, eight profile fields, mods, cheats, pchtxt, the on-screen touch pad, nn::nfp and nn::codec, VP8 / VP9 movies
   with libvpx (329; the game's clips are H.264 and AAC in MP4), the virtual cores, the translation thread, the
-  RomFS overlay and the RomFS parts, the rewriter's code options, code caves and host page, the Mac's wide picture. Left: plan.md.
+  RomFS overlay and the RomFS parts, the rewriter's code options, code caves and host page, the Mac's wide picture, the widening
+  (320; the user, 2026-11-25: the game stays at 16:9). Left: plan.md.

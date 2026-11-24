@@ -37,14 +37,7 @@ void mtl_wait_state_dump(void) {
 }
 void mtl_alloc_stats(uint64_t *waits, uint64_t *grown, int *n) { *waits = g_alloc_waits; *grown = g_alloc_grown; *n = g_alloc_n; }   // Main submit allocator pool: how many times it waited, how many times it grew, how many exist now
 // ---------- What a present asks of this unit (mtl/present.m; declared in mtl/mtl.h) ----------
-// The texture a present shows, and the game's crop on it: on widened storage (plan item 320g) the crop is mapped by the storage's ratio into wcrop,
-// so the widened picture is shown, not its left 16:9 part
-id<MTLTexture> present_tex(const tex_t *t, const int **crop, int wcrop[4]) {
-    id<MTLTexture> src = tex_mtl(t); const int *c = *crop;
-    if (src && __builtin_expect(c && (c[2] || c[3]) && t->d.width && t->d.height && tex_is_widened(src, t), 0)) {
-        widen_map_rect(c, (double)src.width / t->d.width, (double)src.height / t->d.height, (int)src.width, (int)src.height, wcrop); *crop = wcrop; }
-    return src;
-}
+id<MTLTexture> present_tex(const tex_t *t) { return tex_mtl(t); }   // the texture a present shows
 void use_present(void) { if (g_use != USE_OFF && g_use != USE_DONE) use_tick(); }   // DM_GFXUSE counts its frames by presents
 void bootprof_present(uint64_t n) {   // DM_BOOTPROF's line at the first present and every 120th
         if (n == 1) g_bp.first_present = bp_now() - g_bp.t0;

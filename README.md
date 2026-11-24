@@ -122,7 +122,7 @@ port is also credited where it lives in the code.
 - **[nx2android](https://github.com/shirai91/nx2android)** ([shirai91](https://github.com/shirai91), MIT as its README states), nxnative's
   Android port: the rewriter's Android target, the APK written without the Android SDK, facts for the Android port.
 - **[S2Arm](https://github.com/jhaizhou-ops/S2Arm)** ([jhaizhou-ops](https://github.com/jhaizhou-ops), Apache-2.0; written anew from what it
-  does, no code taken): checks and measurements for the iPhone (bandwidth, sleeps, diagnostics, the install flow, the wide screen's route).
+  does, no code taken): checks and measurements for the iPhone (bandwidth, sleeps, diagnostics, the install flow).
 - **[mush8](https://github.com/c22dev/mush8)** ([c22dev](https://github.com/c22dev), GPL-3.0; ideas only, no code taken): three rewriter
   safeguards.
 - **Single fixes from other ports**: [Kamisorara/d2r-mobile](https://github.com/Kamisorara/d2r-mobile),

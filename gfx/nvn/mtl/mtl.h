@@ -173,7 +173,7 @@ void present_queue_state(uint64_t *in, uint64_t *done);   // presents queued and
 void present_drop_for_suspend(void);                 // before the background (mtl_drain): the queued frames the display link will not take are dropped
 void mtl_upscale_set(int on);                        // MetalFX upscaling of the presented picture: the iOS setting
 // What a present asks of nvn_mtl.m (mtl/stats.inc)
-id<MTLTexture> present_tex(const tex_t *t, const int **crop, int wcrop[4]);   // the texture it shows, the game's crop on it
+id<MTLTexture> present_tex(const tex_t *t);   // the texture it shows
 void use_present(void);                              // DM_GFXUSE's count of presents
 void bootprof_present(uint64_t n);                   // DM_BOOTPROF's line at present n
 int mtl_fps_target(void);                            // the player's frame rate target (mtl/exec.inc)

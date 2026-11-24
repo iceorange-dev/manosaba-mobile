@@ -51,10 +51,6 @@ t_core_live: t_core_live.c $(CORE_DEP)
 	clang $(CFLAGS) -Werror -o $@ t_core_live.c $(CORE_C)
 t_core_pass: t_core_pass.c $(CORE_DEP)
 	clang $(CFLAGS) -Werror -o $@ t_core_pass.c $(CORE_C)
-t_widen: t_widen.c ../nvn/core/widen.h
-	clang $(CFLAGS) -Werror -o $@ t_widen.c
-t_widen_rw: t_widen_rw.c ../nvn/core/widen_rw.h ../nvn/core/widen.h
-	clang $(CFLAGS) -Werror -o $@ t_widen_rw.c
 # The null backend (gfx/nvn/null, the Android host's until Vulkan: plan item 301c), on its own
 t_null_be: t_null_be.c ../nvn/null/null.c core_test.h $(GFX_H)
 	clang $(CFLAGS) -Werror -o $@ t_null_be.c ../nvn/null/null.c
@@ -189,22 +185,10 @@ t_uppool: t_uppool.m $(CRASH) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_uppool.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
 t_upbound: t_upbound.m $(CRASH) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_upbound.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
-t_widen_draw: t_widen_draw.m $(CRASH) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -o $@ t_widen_draw.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
-t_widen_copy: t_widen_copy.m $(CRASH) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -o $@ t_widen_copy.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
-t_widen_scale: t_widen_scale.m $(CRASH) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -o $@ t_widen_scale.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
-t_widen_push: t_widen_push.m $(CRASH) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -o $@ t_widen_push.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
 t_key_watch: t_key_watch.m $(CRASH) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_key_watch.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
 t_lodbias: t_lodbias.m $(CRASH) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_lodbias.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
-t_widen_vp: t_widen_vp.m $(CRASH) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -o $@ t_widen_vp.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
-t_widen_tex: t_widen_tex.m $(CRASH) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -o $@ t_widen_tex.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
 t_up_texsrc: t_up_texsrc.m $(CRASH) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_up_texsrc.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
 t_retire: t_retire.m $(CRASH) $(GFX) $(GFX_H)
@@ -352,8 +336,6 @@ run: \
 	t_core_live \
 	t_core_pend \
 	t_core_pass \
-	t_widen \
-	t_widen_rw \
 	t_core_prog \
 	t_core_rt \
 	t_core_state \
@@ -475,12 +457,6 @@ run: \
 	t_uppool \
 	t_upbound \
 	t_up_texsrc \
-	t_widen_tex \
-	t_widen_vp \
-	t_widen_draw \
-	t_widen_copy \
-	t_widen_scale \
-	t_widen_push \
 	t_key_watch \
 	t_lodbias \
 	t_upwait \
@@ -525,8 +501,6 @@ run: \
 	./t_core_live
 	./t_core_pend
 	./t_core_pass
-	./t_widen
-	./t_widen_rw
 	./t_core_prog
 	./t_core_rt
 	./t_core_state
@@ -668,16 +642,6 @@ run: \
 	./t_uppool
 	./t_upbound
 	MTL_DEBUG_LAYER=1 ./t_up_texsrc
-	DM_WIDEN_SCREEN=2868x1320 MTL_DEBUG_LAYER=1 ./t_widen_tex
-	DM_WIDEN_SCREEN=2670x1878 ./t_widen_tex --tall
-	./t_widen_tex --off
-	DM_WIDEN_SCREEN=2868x1320 MTL_DEBUG_LAYER=1 ./t_widen_vp
-	DM_WIDEN_SCREEN=2868x1320 MTL_DEBUG_LAYER=1 ./t_widen_draw
-	DM_WIDEN_SCREEN=2868x1320 ./t_widen_draw --norw
-	DM_WIDEN_SCREEN=2868x1320 MTL_DEBUG_LAYER=1 ./t_widen_copy
-	DM_WIDEN_SCREEN=2868x1320 MTL_DEBUG_LAYER=1 ./t_widen_scale
-	DM_WIDEN_SCREEN=2868x1320 MTL_DEBUG_LAYER=1 ./t_widen_push
-	DM_WIDEN_SCREEN=2853x2007 MTL_DEBUG_LAYER=1 ./t_widen_push
 	MTL_DEBUG_LAYER=1 ./t_key_watch
 	MTL_DEBUG_LAYER=1 ./t_lodbias
 	./t_upwait

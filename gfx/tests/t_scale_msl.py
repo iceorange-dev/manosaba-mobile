@@ -5,7 +5,7 @@ HelperFunctionManager.cs, TexturePass.cs): the support buffer gains render_scale
 shader divides the fragment coordinate's y by render_scale_y[0] (its x by render_scale[0]), none y by render_scale[0]; every helper
 reading render_scale[i] also reads render_scale_y[i] (the axis' scale: TexelFetchScale, TextureSizeUnscale); the reflections give texture
 bindings their scale index (Tears of the Kingdom's upscale ac58fc18eda5f387: its one texture 0, as its MSL passes) and fragment shaders
-frag_coord; widen_push after render_scale_y at the offset the Metal host writes (SUPPORT_WIDEN_PUSH), and every vertex shader ends with the
+frag_coord; widen_push after render_scale_y at the offset the Metal host's layout gives it (SUPPORT_WIDEN_PUSH; zero there: no push), and every vertex shader ends with the
 edge push in x and in y (EmitterContext.EmitWidenPushAxis: the three values of widen_push and of widen_push_y read, the 0.994009 bound); the
 reflections give uniform bindings the slots their shader reads (the upscale's: 0, 1 and 4); and the edge push does not hide the game's
 position from the fetch proof (plan item 325, gfx/tools/dmsh_fetch.py screen_locn): the reflections of 2,388 vertex shaders carry a screen

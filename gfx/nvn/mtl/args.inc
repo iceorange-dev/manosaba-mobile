@@ -68,16 +68,17 @@ static void bind_args(id<MTLCommandEncoder> en, int nvn_stage, int metal_vertex,
 // render_scale_y's offset (plan item 320f, the translator's SupportBuffer.cs: after tfe_offset 1360 and tfe_vertex_count 1376, Std140's 16 bytes a
 // field; tools/tests/t_support_layout.py checks it against the chain's MSL)
 #define SUPPORT_RENDER_SCALE_Y 1392
-#define SUPPORT_WIDEN_PUSH 2560   // widen_push (the vertex edge push, plan item 320f): after render_scale_y; gfx/tests/t_scale_msl.py checks it
-#define SUPPORT_WIDEN_PUSH_Y 2576   // widen_push_y (the edge push of the position's y, plan item 320g): after widen_push
-#define SUPPORT_LEN (SUPPORT_WIDEN_PUSH_Y + 16)   // the buffer's fields up to widen_push_y's end (a draw's copy, encode_args.inc)
-static int g_wd_push_on;   // the vertex stage being encoded for a HUD draw pushed to the screen's edges (draw.inc)
+// widen_push and widen_push_y, the two fields after render_scale_y: the chain's vertex shaders end with an edge push that reads them. They stay
+// zero here, which is no push (the widening they served left with plan item 320); gfx/tests/t_scale_msl.py and tools/tests/t_dmsh_fetch.py
+// check these offsets against the chain's shaders
+#define SUPPORT_WIDEN_PUSH 2560
+#define SUPPORT_WIDEN_PUSH_Y 2576
 static id<MTLBuffer> support_buf(void) {
     static __strong id<MTLBuffer> b; if (b) return b;
     b = [g_dev newBufferWithLength:65536 options:MTLResourceStorageModeShared]; res_add(b);   // All 0 when newly created
     const int render_scale_off = 192;   // Measured MSL layout: alpha_test 0, is_bgra[8] 16, viewport_inverse 144, viewport_size 160, frag_scale_count 176, render_scale float4[73] 192 (take .x)
     for (int i = 0; i < 73; i++) *(float *)((uint8_t *)b.contents + render_scale_off + 16 * i) = 1.0f;
-    for (int i = 0; i < 73; i++) *(float *)((uint8_t *)b.contents + SUPPORT_RENDER_SCALE_Y + 16 * i) = 1.0f;   // render_scale_y (plan item 320f)
+    for (int i = 0; i < 73; i++) *(float *)((uint8_t *)b.contents + SUPPORT_RENDER_SCALE_Y + 16 * i) = 1.0f;   // render_scale_y: 1 as well
     return b;
 }
 static uint64_t support_gpu(void) { static uint64_t gpu; if (!gpu) gpu = support_buf().gpuAddress; return gpu; }

@@ -281,7 +281,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
     use_present();
     if (bootprof() && (g_present_n == 1 || g_present_n % 120 == 0)) bootprof_present(g_present_n);
     PD("X ser=%llu", t->serial);
-    int wcrop[4]; id<MTLTexture> src = present_tex(t, &crop, wcrop);   // (on widened storage the crop is mapped into wcrop)
+    id<MTLTexture> src = present_tex(t);
     if (!src) { RED_ONCE(8, "cannot create MTLTexture for the present texture"); return 0; }
     // DM_NVN_REGLUM=x0,y0,x1,y1:file (normalized coordinates): read back this region on every present and record "present sequence number, present time ns, region mean luminance, subsampled grayscale thumbnail (hex)" (diagnostic: verify that animation speed is independent of frame rate).
     // A separate command buffer is queued after this frame's rendering (the same queue executes in submit order); does not wait for the GPU and does not disturb frame pacing

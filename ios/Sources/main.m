@@ -288,14 +288,6 @@ static void gfx_settings_boot(void) {
         }
     } else if (h > 0) { char b[16]; snprintf(b, sizeof b, "%ld", (long)h); setenv("DM_RENDER_HEIGHT", b, 0); }
     if (g_gfx_fx) setenv("DM_UPSCALE", "metalfx", 0);
-    {   // The widening (plan item 320g; DM_WIDEN=1, env.txt for now): 16:9 targets widened to this screen's aspect (gfx/nvn/core/widen.h)
-        const char *e = getenv("DM_WIDEN"); UIWindowScene *ws = nil; unsigned W, H;
-        for (UIScene *sc in UIApplication.sharedApplication.connectedScenes) if ([sc isKindOfClass:UIWindowScene.class]) { ws = (UIWindowScene *)sc; break; }
-        CGSize nb = ws ? ws.screen.nativeBounds.size : CGSizeZero;
-        if (e && atoi(e) > 0 && !getenv("DM_WIDEN_SCREEN") && dm_widen_screen((unsigned)nb.width, (unsigned)nb.height, &W, &H)) {
-            char b[32]; snprintf(b, sizeof b, "%ux%u", W, H); setenv("DM_WIDEN_SCREEN", b, 1); plog("boot: widening to the screen's %s (DM_WIDEN)", b);
-        }
-    }
     plog("boot: graphics settings: %ld fps (%s), render height %s%s%s, MetalFX %s, hold 30 fps when hot %s", (long)g_gfx_fps, why, getenv("DM_RENDER_HEIGHT") ?: "the game's",
          getenv("DM_DISPLAY_SIZE") ? ", display " : "", getenv("DM_DISPLAY_SIZE") ?: "", g_gfx_fx ? "on" : "off", hot_hold() ? "on" : "off");
 }
@@ -505,9 +497,6 @@ int main(int argc, char *argv[]) {
     { NSString *b = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"dm/env.txt"], *d = [docs_dir() stringByAppendingPathComponent:@"env.txt"];
       int nb = dm_env_file_apply(b.fileSystemRepresentation, env_said), nd = dm_env_file_apply(d.fileSystemRepresentation, env_said);
       if (nb >= 0 || nd >= 0) plog("boot: env.txt: %d switch(es) from the bundle, %d from Documents", nb > 0 ? nb : 0, nd > 0 ? nd : 0); }
-    // The setting "Wide screen" (plan item 320g; off unless chosen; the Settings app or the panel, taken at launch: the widened storage is made
-    // as the game starts): DM_WIDEN=1 unless env.txt said DM_WIDEN; front_ios.m and gfx_settings_boot read DM_WIDEN
-    if (!getenv("DM_WIDEN") && [NSUserDefaults.standardUserDefaults boolForKey:@"dm.widen"]) { setenv("DM_WIDEN", "1", 0); plog("boot: the setting Wide screen is on (DM_WIDEN=1)"); }
     logstamp_stderr();   // UTC milliseconds on every line from here on (after env.txt, which can say DM_LOG_TIME=0)
     if (getenv("DM_CLEAR_SHADER_CACHE") && atoi(getenv("DM_CLEAR_SHADER_CACHE"))) {   // a fresh install's empty Metal shader cache (host/shadercache.h, plan item 257)
         NSString *c = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject stringByAppendingPathComponent:NSBundle.mainBundle.bundleIdentifier];

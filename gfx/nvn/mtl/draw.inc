@@ -1,16 +1,4 @@
 // gfx/nvn/mtl/draw.inc, part of nvn_mtl.m (included there in order, one translation unit): Draws and dispatches (copies, texels and texture clears: copies.inc)
-static uint64_t g_wd_hud, g_wd_wide, g_wd_pushed;   // draws into widened targets centred as the HUD's / widened (320d) / the HUD's pushed to the screen's edges (320f)
-void mtl_widen_draw_stats(uint64_t out[3]) { out[0] = g_wd_hud; out[1] = g_wd_wide; out[2] = g_wd_pushed; }
-static int has_support(const NvShader *sh) { if (!sh) return 0; for (int i = 0; i < sh->rf.nb; i++) if (sh->rf.b[i].kind == NVN_RB_SUPPORT) return 1; return 0; }
-// Whether a HUD draw into a widened target is pushed to the screen's edges (plan item 320f; fl: g_wd_fl): one that read the HUD's projection
-// and samples nothing larger than 8x8, whose vertex shader has the chain's edge push. Never one that reads its own pixel from the tile
-// (fbx_fetch): its sample is proven for the position the push leaves alone (dmsh_fetch.py screen_locn, plan item 325)
-static int wd_push_ok(int widened, int fl, int support, int tile_read) {
-#ifdef DM_TEST_WIDEN_PUSH_TILE_READ   // negative control of t_widen_push only: a draw reading the tile pushed all the same
-    tile_read = 0;
-#endif
-    return widened && (fl & 7) == 2 && !(fl & 16) && support && !tile_read;
-}
 // The draw, in three stages: what keeps it from drawing or comes before it (draw_admit), the render pass it draws in (draw_pass), its encoding
 // (draw_encode). draw() is also how deferred and merged draws are drawn again (defer_replay, defer_fallback, fz_check_run)
 static id<MTLFunction> g_draw_fz_fn;   // Specialized fragment function for this draw of the later pass in a merged render pass (nil = use the original version)
@@ -153,13 +141,12 @@ static int draw_encode(id<MTLRenderCommandEncoder> en, __unsafe_unretained NvPro
     enc_r_stencil_ref(en, S.st_ref[0], S.st_ref[1]);
     if (g_lay.active && g_lay.amp != g_lay.cur - g_lay.first) { g_lay.amp = g_lay.cur - g_lay.first; enc_r_layer(en, (uint32_t)g_lay.amp); }   // this draw's layer in the layered pass
     // Viewport / scissor (clamped within the target size)
-    NSUInteger tw = g_pass.tw, th = g_pass.th; double kx = g_pass.kx, ky = g_pass.ky;   // kx, ky: a widened target's (320c), the game's viewport and scissor mapped onto it
-    if (S.has_vp) enc_r_viewport(en, (MTLViewport){S.vp[0][0] * kx, S.vp[0][1] * ky, S.vp[0][2] * kx, S.vp[0][3] * ky, S.dr[0], S.dr[1]});
+    NSUInteger tw = g_pass.tw, th = g_pass.th;
+    if (S.has_vp) enc_r_viewport(en, (MTLViewport){S.vp[0][0], S.vp[0][1], S.vp[0][2], S.vp[0][3], S.dr[0], S.dr[1]});
     else enc_r_viewport(en, (MTLViewport){0, 0, tw, th, 0, 1});
     MTLScissorRect sc = {0, 0, tw, th};
     if (R.has_sc) {
         long x0 = R.sc.x < 0 ? 0 : R.sc.x, y0 = R.sc.y <= 0 ? 0 : R.sc.y, x1 = (long)R.sc.x + R.sc.w, y1 = (long)R.sc.y + R.sc.h;
-        if (kx != 1 || ky != 1) { x0 = (long)floor(x0 * kx); y0 = (long)floor(y0 * ky); x1 = (long)ceil(x1 * kx); y1 = (long)ceil(y1 * ky); }
         if (x1 > (long)tw) x1 = tw; if (y1 > (long)th) y1 = th;
         if (x1 <= x0 || y1 <= y0) return 1;
         sc = (MTLScissorRect){(NSUInteger)x0, (NSUInteger)y0, (NSUInteger)(x1 - x0), (NSUInteger)(y1 - y0)};
@@ -197,35 +184,8 @@ static int draw_encode(id<MTLRenderCommandEncoder> en, __unsafe_unretained NvPro
     static id<MTLBuffer> zero; if (!zero) { zero = [g_dev newBufferWithLength:64 options:MTLResourceStorageModeShared]; res_add(zero); }
     static uint64_t zero_gpu; if (!zero_gpu) zero_gpu = zero.gpuAddress;
     if (!g_es.vb_zero) { enc_r_vbuf(en, 30, zero_gpu); g_es.vb_zero = 1; }
-    g_wd_fl = 0;
     if (pr->sh[0] && !encode_args(en, pr->sh[0], 0, 1)) return 0;
     if (pr->sh[1] && !encode_args(en, pr->sh[1], 1, 0)) return 0;
-    // The HUD into a widened target (plan item 320d): a draw that read the HUD's orthographic projection and no projection to change is placed in the
-    // centred 16:9 band at its own size instead of widened (its viewport and scissor moved by half the added width / height)
-#ifndef DM_TEST_WIDEN_HUD_WIDE   // negative control of t_widen_draw only: the HUD widened with the rest
-    // A HUD draw that samples nothing larger than 8x8 (a black fade, a veil, a flat panel) and whose vertex shader has the chain's edge push
-    // (plan item 320f): the whole viewport, as a widened draw's, and its vertex stage again with the push (shrunk to the middle, the canvas'
-    // edges to the screen's: S2Arm's rule); one that samples more stays centred (a texture would stretch)
-#ifndef DM_TEST_WIDEN_PUSH_OFF   // negative control of t_widen_push only: every HUD draw centred
-    if (__builtin_expect(kx != 1 || ky != 1, 0) && wd_push_ok(1, g_wd_fl, has_support(pr->sh[0]), g_fbx_fn && !g_defer_replaying)) {   // (either axis, 320g)
-        g_wd_push_on = 1; g_args_dirty[0] = 1; int ok = encode_args(en, pr->sh[0], 0, 1); g_wd_push_on = 0; g_args_dirty[0] = 1;   // (the next draw's vertex stage encoded again without it)
-        if (!ok) return 0;
-        g_wd_pushed++;
-    } else
-#endif
-    if (__builtin_expect(kx != 1 || ky != 1, 0) && (g_wd_fl & 7) == 2) {
-        double ox = (tw - tw / kx) / 2, oy = (th - th / ky) / 2; g_wd_hud++;
-        if (S.has_vp) enc_r_viewport(en, (MTLViewport){S.vp[0][0] + ox, S.vp[0][1] + oy, S.vp[0][2], S.vp[0][3], S.dr[0], S.dr[1]});
-        else enc_r_viewport(en, (MTLViewport){ox, oy, tw / kx, th / ky, 0, 1});
-        long x0 = R.has_sc ? (R.sc.x < 0 ? 0 : R.sc.x) : 0, y0 = R.has_sc ? (R.sc.y <= 0 ? 0 : R.sc.y) : 0;
-        long x1 = R.has_sc ? (long)R.sc.x + R.sc.w : (long)(tw / kx), y1 = R.has_sc ? (long)R.sc.y + R.sc.h : (long)(th / ky);
-        x0 = (long)floor(x0 + ox); x1 = (long)ceil(x1 + ox); y0 = (long)floor(y0 + oy); y1 = (long)ceil(y1 + oy);
-        if (x1 > (long)tw) x1 = tw; if (y1 > (long)th) y1 = th;
-        if (x1 <= x0 || y1 <= y0) return 1;
-        enc_r_scissor(en, (MTLScissorRect){(NSUInteger)x0, (NSUInteger)y0, (NSUInteger)(x1 - x0), (NSUInteger)(y1 - y0)});
-    } else if (__builtin_expect(kx != 1 || ky != 1, 0)) g_wd_wide++;
-    if (__builtin_expect(g_wd_fl & 8, 0)) g_wce[WCE_PLAIN_SAMPLES_WIDE]++;
-#endif
     // Binding them can end the pass: a texture bound through a view of another format is made again with format views allowed and copied there on
     // a blit encoder (tex_upgrade_pfv), which ends the render pass first. Encoded on that ended encoder, the draw crashed in the driver (seedds/nxnative
     // 81ccacf, MIT: Need for Speed: Hot Pursuit Remastered); it is begun again in a new pass, where the texture is the upgraded one (plan item 296)
@@ -442,13 +402,6 @@ static void dispatch(const p_dispatch *dp) {
     CENC ce = blit(); [ce setArgumentTable:g_ct]; args_dirty_all(); g_disp_n++; g_disp_shared += open;
 #endif
     enc_c_pso(ce, ps);
-    if (__builtin_expect(widen_get()->k != 1 || widen_get()->ky != 1, 0)) {   // the census (320e): the images it writes
-        int f16 = 0, fw = 0; pthread_mutex_lock(&g_rmu);
-        for (int i = 0; i < cs->rf.nb; i++) { const nvn_rbind *b = &cs->rf.b[i]; if (b->kind != NVN_RB_IMG || b->reg >= 32) continue;
-            int tid = h_tid(S.img[5][b->reg]); if (tid <= 0 || tid >= g_ntreg || !g_treg[tid].ok) continue;
-            const tex_t *it = &g_treg[tid].t; if (!widen_family((int)it->d.width, (int)it->d.height)) continue;
-            f16 = 1; void *tv = NULL; tex_fast_rid(tid, &tv); if (tv && tex_is_widened((__bridge id<MTLTexture>)tv, it)) fw = 1; }
-        pthread_mutex_unlock(&g_rmu); g_wce[WCE_DISP16] += f16; g_wce[WCE_DISP16_WIDE] += fw; }
     g_dispatch_grid[0] = (uint32_t)dp->x; g_dispatch_grid[1] = (uint32_t)dp->y; g_dispatch_grid[2] = (uint32_t)dp->z;   // c0 + 0x200 (drv_fill)
     encode_args(ce, cs, 5, 0);
 #if !DM_NVN_M3

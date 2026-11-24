@@ -6,18 +6,18 @@ A new item takes the next number (332). How these two files are kept: [DEVELOPME
 
 ## What Tears of the Kingdom left behind
 
-The repository is manosaba's alone, on iOS and Android, since 2026-11-24 (the tag `totk-last`: the last commit with the other game). Each
-part below goes with its tests, its switches' rows and its records, after a manosaba run before and after it. Nothing removed since that day
-has run on a phone yet: an iPhone and an Android run are owed, and come before the part that changes what the phones draw (the
-widening). The parts that went first were off for manosaba on every platform, by its profile or a switch; in the iOS Simulator the app
-starts and runs (`ios/run.sh sim-run`: the launch path, not the pictures).
+The repository is manosaba's alone, on iOS and Android, since 2026-11-24 (the tag `totk-last`: the last commit with the other game), and the
+game stays at 16:9 (the user, 2026-11-25): the shared code only the other game reached is gone, the widening last (328). Nothing removed since
+that day has run on a phone yet: an iPhone and an Android run are owed. In the iOS Simulator the app starts and runs (`ios/run.sh sim-run`:
+the launch path, not the pictures).
 
-- 328 · shared code only that game reached, by its gate: the widening (320: `DM_WIDEN`, the settings' "Wide screen" switch; it is offered
-  to manosaba's players today and was never looked at on this game, so the user decides and a phone run comes first).
+- 328 · the shader chain still carries the widening's part: the per-axis render scale, the vertex shaders' edge push (the translator's
+  `EmitWidenPushAxis`, `widen_push` in its support buffer) and `gfx/tools/dmsh_fetch.py`'s proof through it. The hosts keep the scales at 1 and
+  the push at 0. They leave with the next change of the chain, which rebuilds every shader.
 - 329 · takeovers the game's modules bind but no run has used (audren, 4 of its 12 names; motion, friends, net, swkbd) and the lists it has
   none of (`fout.tsv`, `border_msl.txt`, `lodbias_msl.txt`): kept until a longer run and a phone show them unused.
-- 330 · the documents: DEVELOPMENT.md and the READMEs' tables after 328; the open items below that came from the other game's work (271,
-  220, 320g, 320e, 318, 67), each with its part.
+- 330 · the documents: DEVELOPMENT.md and the READMEs' tables; the open items below that came from the other game's work (271, 220, 318, 67),
+  each when its part is next touched.
 
 ## The iPhone Air (the test phone)
 
@@ -50,7 +50,6 @@ starts and runs (`ios/run.sh sim-run`: the launch path, not the pictures).
 
 ## Other hardware
 
-- 320g · the iPhone Duo's inner screen (the user's main phone: ask first): the widened present's fps, GPU time, the HUD's proportions.
 - 66, 67, 299 · a controller: the printed-letter face buttons of a Switch Pro controller (66); gyro and rumble with a controller and the phone
   (67); Home and Capture kept from the system (nxnative 062cd06), motion (659c69d, cca3333), rumble through `GCHapticsLocalityHandles`
   (2e07a88) (299).
@@ -82,5 +81,3 @@ The Android phone (a Redmi K100 Pro Max), for item 301, manosaba on Android:
 
 - 322 · three shaders changed when a run draws with one (`DM_NVN_KEY_WATCH` names the frame and pass): vertex shader 588e242a52f5f7aa's
   stores with no storage buffer; the sample index (PIXLD.MY_INDEX) of manosaba's pixel shaders a1fe71290083482a and 45eb69b3b99c6600.
-- 320e · compute writing a widened image and a copy's destination widened after its source (S2Arm's rules); the `[nvn] widening's census`
-  line watches.

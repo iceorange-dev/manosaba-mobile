@@ -7,7 +7,7 @@
 // fin: the texture this entry names was released after nvnTextureFinalize (fin_drain) while the ID stayed registered, at submission fin_sub
 typedef struct { tex_t t; int ok, fin; view_t v; int has_v; void *view; uint64_t view_id, view_rid, view_ser, view_dirty, fin_sub, live_gen; int view_kind;
                  void *alt, *alt_of; uint64_t alt_rid; uint8_t alt_type;
-                 float wr_x, wr_y; uint64_t wr_rid, wr_gen; } treg_t;   // wr_*: the bound texture's storage ratio (the widening, plan item 320g), for the texture wr_rid while g_ser_gen is wr_gen   // alt: a view of another texture type for shaders that declare one (tex_fit), built from the view alt_of
+                 } treg_t;   // alt: a view of another texture type for shaders that declare one (tex_fit), built from the view alt_of
 extern treg_t *g_treg; extern int g_ntreg;
 extern samp_par *g_sreg; extern uint8_t *g_sreg_ok; extern void **g_sview; extern uint64_t *g_srid; extern int g_nsreg;   // g_sview: sampler ID → MTLSamplerState (retained)
 extern uint8_t *g_sreg_lb;           // the sampler's LOD bias is carried by the shaders, not the sampler (plan item 318)
@@ -21,7 +21,7 @@ static inline int h_sid(uint64_t h) { int s = (int)(h >> 20); return s ? s + g_s
 @interface NvShader : NSObject { @public id<MTLFunction> fn; nvn_refl rf; id<MTLArgumentEncoder> ae; NSUInteger arg_len; int stage; char key[24]; id<MTLBuffer> c1buf; uint64_t c1_gpu; size_t c1off;
     id<MTLLibrary> vi_lib; NSString *vi_entry; uint32_t vi_mask; NSMutableDictionary<NSNumber *, id<MTLFunction>> *vi_fns;   // integer vertex input variant (dmsh_build.py vi_variant): locations that can be specialized
     // The argument buffer encoded last time
-    id<MTLBuffer> ab_buf; uint64_t ab_gpu; size_t ab_off; uint64_t ab_pass; int ab_wfl;   // ab_wfl: what its uniform blocks held for the widening (320d), kept with the reused block;   // ab_pass: serial of the render pass that encoded this argument block - reused only within the same pass (the arena holding a block from another pass / another submission may already have been reclaimed and rewritten)
+    id<MTLBuffer> ab_buf; uint64_t ab_gpu; size_t ab_off; uint64_t ab_pass;   // ab_pass: serial of the render pass that encoded this argument block - reused only within the same pass (the arena holding a block from another pass / another submission may already have been reclaimed and rewritten)
     id<MTLLibrary> bflib; int bflib_tried; NSMutableDictionary<NSString *, id<MTLFunction>> *bffn;   // bflib: readable-tile version <key>_bf (merge B step 2)
     id<MTLLibrary> alib; NSMutableDictionary<NSNumber *, id<MTLFunction>> *afn;
     NSMutableDictionary<NSString *, NvShader *> *bdv;
