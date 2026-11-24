@@ -1,7 +1,7 @@
 // What this GPU stores for a float above float16's range (gfx/nvn/mtl/fp16_probe.h, plan item 310; nxnative PR #1128: an M1 Pro stores 65504,
 // an A19 Pro +inf): the probe runs, 65504 comes back as itself from the RGBA16Float target and from half(), and 1e5 / -1e5 come back as 65504 or
-// +inf and its negative; which one this GPU gives is printed. The backend logs the same with DM_FP16_PROBE=1 (the iPhone's run of it is in
-// DEVELOPMENT.md). Plan item 315d: 1.0007 and -1.0007 come back from the target rounded to nearest (0x3c01 / 0xbc01) or toward zero (0x3c00 /
+// +inf and its negative; which one this GPU gives is printed. The backend logs the same with DM_FP16_PROBE=1.
+// Plan item 315d: 1.0007 and -1.0007 come back from the target rounded to nearest (0x3c01 / 0xbc01) or toward zero (0x3c00 /
 // 0xbc00), the same way for both signs, and 1 + 2^-11 as 0x3c00 either way; which one is printed (and half()'s). f16_edge_count over a row of
 // halves: 2 at ±65504, 2 at ±inf, 2 NaN, the rest not counted. An RGBA16Unorm target (-DDM_TEST_FP16_PROBE_UNORM): 4 fail; the sign kept when
 // counting (-DDM_TEST_F16_COUNT_POSITIVE): 1 fails.

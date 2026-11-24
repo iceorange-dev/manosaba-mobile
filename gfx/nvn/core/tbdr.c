@@ -9,7 +9,7 @@ int g_tbdr = -1, g_tbdr_off = -1;
 int g_ruler_truth = -1, g_ruler_pending;
 void tbdr_read(void) {
     const char *e = getenv("DM_NVN_TBDR"), *r = getenv("DM_NVN_RULER"); g_tbdr = !(e && !strcmp(e, "0")); g_ruler_truth = r && !strcmp(r, "1");
-    if (!g_tbdr) MLOG("DM_NVN_TBDR=0: all TBDR optimizations off (the reference for equivalence checks; Tears of the Kingdom's default on the Mac, games/totk/defaults.c)");
+    if (!g_tbdr) MLOG("DM_NVN_TBDR=0: all TBDR optimizations off (the reference for equivalence checks)");
 }
 void tbdr_read_off(void) {
     int off = 0; const char *e = getenv("DM_NVN_TBDR_OFF");

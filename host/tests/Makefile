@@ -90,9 +90,6 @@ run: \
 	$(B)/t_hid_receipt \
 	$(B)/t_hid_receipt_oneslot \
 	$(B)/t_hid_applet \
-	$(B)/t_totk_defaults \
-	$(B)/t_totk_defaults_noxlat \
-	$(B)/t_totk_defaults_tbdr \
 	$(B)/t_mano_defaults \
 	$(B)/t_mano_defaults_mem \
 	$(B)/t_mano_defaults_xv \
@@ -135,11 +132,6 @@ run: \
 	$(B)/t_oe_noop \
 	$(B)/t_oe_unlocked \
 	$(B)/t_oe_noios \
-	$(B)/t_movie_fps \
-	$(B)/t_movie_fps_any \
-	$(B)/t_optref \
-	$(B)/t_optref_one \
-	$(B)/t_survey \
 	$(B)/t_lang \
 	$(B)/t_mano_display \
 	$(B)/t_mano_display_const \
@@ -171,7 +163,6 @@ run: \
 	$(B)/t_romfs_parts_nosha \
 	$(B)/t_romfs_parts_anypath \
 	$(B)/t_guest_as_nolimit \
-	$(B)/t_survey_cols \
 	$(B)/t_options \
 	$(B)/t_options_nocheck \
 	$(B)/t_cheat_vm \
@@ -450,15 +441,6 @@ run: \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_motion_$$v.log)" -ne 1 ]; then \
 	   cat $(B)/t_motion_$$v.log; echo "t_motion_$$v: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; done; echo "t_motion: every style forwarded, the zero point never learned, no gravity, no peak hold each fail one, as expected"
-	env -u DM_NVN_XLAT -u DM_NVN_TBDR $(B)/t_totk_defaults
-	@status=0; env -u DM_NVN_XLAT -u DM_NVN_TBDR $(B)/t_totk_defaults_noxlat > $(B)/t_totk_defaults_noxlat.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_totk_defaults_noxlat.log)" -ne 1 ]; then \
-	   cat $(B)/t_totk_defaults_noxlat.log; echo "t_totk_defaults_noxlat: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_totk_defaults_noxlat: the translation thread off by default, as expected"
-	@status=0; env -u DM_NVN_XLAT -u DM_NVN_TBDR $(B)/t_totk_defaults_tbdr > $(B)/t_totk_defaults_tbdr.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_totk_defaults_tbdr.log)" -ne 1 ]; then \
-	   cat $(B)/t_totk_defaults_tbdr.log; echo "t_totk_defaults_tbdr: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_totk_defaults_tbdr: the TBDR rewrites left on, as expected"
 	env -u DM_NVN_DS_MEMORYLESS -u DM_NVN_XV $(B)/t_mano_defaults
 	@status=0; env -u DM_NVN_DS_MEMORYLESS -u DM_NVN_XV $(B)/t_mano_defaults_mem > $(B)/t_mano_defaults_mem.log 2>/dev/null || status=$$?; \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_mano_defaults_mem.log)" -ne 1 ]; then \
@@ -540,17 +522,6 @@ run: \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '^FAIL' $(B)/t_oe_noios.log)" -ne 1 ] || ! grep -q "FAIL iOS, a profile with ios_mode handheld" $(B)/t_oe_noios.log; then \
 	   cat $(B)/t_oe_noios.log; echo "t_oe_noios: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_oe_noios: without the profile's iOS mode Tears of the Kingdom starts docked on iOS, as expected"
-	$(B)/t_movie_fps
-	@status=0; $(B)/t_movie_fps_any > $(B)/t_movie_fps_any.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "main+0x770f04 .*✗" $(B)/t_movie_fps_any.log; then \
-	   cat $(B)/t_movie_fps_any.log; echo "t_movie_fps_any: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_movie_fps_any: holding every cutscene holds the prologue's real-time one too, as expected"
-	$(B)/t_optref
-	@status=0; $(B)/t_optref_one > $(B)/t_optref_one.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_optref_one.log)" -ne 1 ] || ! grep -q "the iPhone's.*✗" $(B)/t_optref_one.log; then \
-	   cat $(B)/t_optref_one.log; echo "t_optref_one: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_optref_one: MacNativeGames' value alone lets the iPhone's crash through, as expected"
-	TMPDIR="$(abspath $(B))" $(B)/t_survey
 	$(B)/t_lang
 	@status=0; $(B)/t_lang_region > $(B)/t_lang_region.log 2>/dev/null || status=$$?; \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_lang_region.log)" -ne 6 ]; then \
@@ -626,10 +597,6 @@ run: \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_sleepstats_bodefault.log)" -ne 1 ]; then \
 	   cat $(B)/t_sleepstats_bodefault.log; echo "t_sleepstats_bodefault: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_sleepstats_bodefault: the back-off off unless asked fails its default, as expected"
-	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_survey_cols > $(B)/t_survey_cols.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_survey_cols.log)" -ne 1 ] || ! grep -q "the rotation's rows.*✗" $(B)/t_survey_cols.log; then \
-	   cat $(B)/t_survey_cols.log; echo "t_survey_cols: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_survey_cols: a transposed rotation turns Link the wrong way, as expected"
 	TMPDIR="$(abspath $(B))" $(B)/t_options 2>/dev/null
 	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_options_nocheck > $(B)/t_options_nocheck.log 2>/dev/null || status=$$?; \
 	 if [ "$$status" -ne 1 ] || ! grep -q "✗ c with a row" $(B)/t_options_nocheck.log; then \
@@ -1114,12 +1081,6 @@ $(B)/t_mainqos: t_mainqos.c t_condvar_stub.c ../hle/hle_thread.c ../dm.h ../runt
 	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -I.. -o $@ t_mainqos.c t_condvar_stub.c ../hle/hle_thread.c ../runtime/plat_apple.c
 $(B)/t_mainqos_ignored: t_mainqos.c t_condvar_stub.c ../hle/hle_thread.c ../dm.h ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -DDM_TEST_MAIN_QOS_IGNORED -I.. -o $@ t_mainqos.c t_condvar_stub.c ../hle/hle_thread.c ../runtime/plat_apple.c
-$(B)/t_totk_defaults: t_totk_defaults.c ../../games/totk/defaults.c ../game.h | $(B)
-	clang -O1 -Wall -I.. -o $@ t_totk_defaults.c
-$(B)/t_totk_defaults_noxlat: t_totk_defaults.c ../../games/totk/defaults.c ../game.h | $(B)
-	clang -O1 -Wall -DDM_TEST_TOTK_NO_XLAT -I.. -o $@ t_totk_defaults.c
-$(B)/t_totk_defaults_tbdr: t_totk_defaults.c ../../games/totk/defaults.c ../game.h | $(B)
-	clang -O1 -Wall -DDM_TEST_TOTK_TBDR_ON -I.. -o $@ t_totk_defaults.c
 $(B)/t_mano_defaults: t_mano_defaults.c ../../games/manosaba/defaults.c | $(B)
 	clang -O1 -Wall -I.. -o $@ t_mano_defaults.c
 $(B)/t_mano_defaults_mem: t_mano_defaults.c ../../games/manosaba/defaults.c | $(B)
@@ -1247,18 +1208,6 @@ $(B)/t_lang_region: t_lang.c ../lang.h | $(B)
 	clang -O1 -Wall -Werror -I.. -DDM_TEST_LANG_REGION_IGNORED -o $@ t_lang.c
 $(B)/t_lang_regfirst: t_lang.c ../lang.h | $(B)
 	clang -O1 -Wall -Werror -I.. -DDM_TEST_LANG_REGION_FIRST -o $@ t_lang.c
-$(B)/t_survey: ../../games/totk/tests/t_survey.c ../../games/totk/survey.c ../dm.h ../game.h | $(B)
-	clang -O1 -Wall -I.. -o $@ ../../games/totk/tests/t_survey.c
-$(B)/t_survey_cols: ../../games/totk/tests/t_survey.c ../../games/totk/survey.c ../dm.h ../game.h | $(B)
-	clang -O1 -Wall -I.. -DDM_TEST_SURVEY_COLUMNS -o $@ ../../games/totk/tests/t_survey.c
-$(B)/t_movie_fps: ../../games/totk/tests/t_movie_fps.c ../../games/totk/movie_fps.c ../dm.h ../game.h | $(B)
-	clang -O1 -Wall -Wno-unused-function -I.. -o $@ ../../games/totk/tests/t_movie_fps.c
-$(B)/t_movie_fps_any: ../../games/totk/tests/t_movie_fps.c ../../games/totk/movie_fps.c ../dm.h ../game.h | $(B)
-	clang -O1 -Wall -Wno-unused-function -DDM_TEST_MOVIE_ANY_CUTSCENE -I.. -o $@ ../../games/totk/tests/t_movie_fps.c
-$(B)/t_optref: ../../games/totk/tests/t_optref.c ../../games/totk/optref.c ../dm.h | $(B)
-	clang -O1 -Wall -Wno-unused-function -I.. -o $@ ../../games/totk/tests/t_optref.c
-$(B)/t_optref_one: ../../games/totk/tests/t_optref.c ../../games/totk/optref.c ../dm.h | $(B)
-	clang -O1 -Wall -Wno-unused-function -DDM_TEST_OPTREF_ONE_VALUE -I.. -o $@ ../../games/totk/tests/t_optref.c
 $(B)/t_quitwait: t_quitwait.c ../hle/hle_lifecycle.c ../hle.h ../dm.h ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wall -Wno-unused-function -I.. -o $@ t_quitwait.c ../runtime/plat_apple.c
 $(B)/t_quitwait_old: t_quitwait.c ../hle/hle_lifecycle.c ../hle.h ../dm.h ../runtime/plat_apple.c | $(B)

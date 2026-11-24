@@ -3,7 +3,7 @@
 map's keys are packed (their libraries, reflections, readable-tile versions, and the integer-output variants of the game's fout.tsv keys); a
 library of the same bytes as another (a twin) once, twins.tsv naming the one packed in its place, its reflection packed; ios/tools/shader_check.py
 takes the packed directory as complete; the host opens every library through msl_lib_path (no library path joined to g_msl_dir by hand). With the
-workspace's iOS libraries of this chain: manosaba's map packed, none of Tears of the Kingdom's, every key's library there itself or as its twin.
+workspace's iOS libraries of this chain: manosaba's map packed, no library of a key outside the map, every key's library there itself or as its twin.
 T_SHADER_PACK_BROKEN=all (the whole directory, as ios/run.sh copied it before): 2 fail (3 with the workspace's libraries)."""
 import glob, os, re, subprocess, sys, tempfile
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
@@ -43,18 +43,18 @@ inc = {p: open(p, encoding='utf-8').read() for p in glob.glob(os.path.join(ROOT,
 hand = [f'{os.path.basename(p)}:{i + 1}' for p, s in inc.items() for i, ln in enumerate(s.split('\n')) if 'g_msl_dir' in ln and '.metallib' in ln]
 check('the host opens every library through msl_lib_path (twins.tsv), none by a path joined to g_msl_dir by hand', not hand, ', '.join(hand))
 chain = subprocess.run([sys.executable, os.path.join(ROOT, 'gfx', 'tools', 'dmsh_chain.py')], capture_output=True, text=True).stdout.strip()
-ios = os.path.join(DM_ROOT, 'build', 'ios', 'dmsh_b', 'b-' + chain); mmap = os.path.join(DM_ROOT, 'build', 'mano', 'shader_map.tsv'); tmap = os.path.join(DM_ROOT, 'build', 'totk', 'shader_map.tsv')
-if os.path.isdir(ios) and os.path.exists(mmap) and os.path.exists(tmap):
+ios = os.path.join(DM_ROOT, 'build', 'ios', 'dmsh_b', 'b-' + chain); mmap = os.path.join(DM_ROOT, 'build', 'mano', 'shader_map.tsv')
+if os.path.isdir(ios) and os.path.exists(mmap):
     keys = lambda p: [ln.split('\t')[0] for ln in open(p) if ln.strip() and not ln.startswith('#')]
-    mk, tk = set(keys(mmap)), set(keys(tmap)) - set(keys(mmap))
+    mk = set(keys(mmap))
     with tempfile.TemporaryDirectory() as w:
         files, twins, missing = shader_pack.pack(mmap, ios, os.path.join(w, 'b-' + chain), os.path.join(ROOT, 'games', 'manosaba', 'fout.tsv'))
         size = sum(os.path.getsize(os.path.join(ios, n)) for n in files)
-        other = [n for n in files if n[:16] in tk]
+        other = [n for n in files if re.fullmatch(r'[0-9a-f]{16}', n[:16]) and n[:16] not in mk]
         n, bad = shader_check.check(mmap, os.path.join(w, 'b-' + chain), os.path.join(ROOT, 'games', 'manosaba', 'fout.tsv'))
         print(f'manosaba from b-{chain}: {len(files)} files, {size / 1e6:.1f} MB, {len(twins)} libraries packed once')
-        check(f'the workspace\'s iOS libraries: manosaba\'s {len(mk)} keys packed, none of Tears of the Kingdom\'s, each library there itself or as its twin [T_SHADER_PACK_BROKEN=all]',
-              not missing and not other and n == len(mk) and not bad, f'{len(other)} of the other game\'s; ' + '; '.join(bad[:3] + missing[:3]))
+        check(f'the workspace\'s iOS libraries: manosaba\'s {len(mk)} keys packed, none of a key outside the map, each library there itself or as its twin [T_SHADER_PACK_BROKEN=all]',
+              not missing and not other and n == len(mk) and not bad, f'{len(other)} of keys outside the map; ' + '; '.join(bad[:3] + missing[:3]))
 else: print(f'(no iOS libraries of chain {chain} in the workspace: the workspace check skipped)')
 print(f'{total} checks, {fails} failed')
 sys.exit(1 if fails else 0)

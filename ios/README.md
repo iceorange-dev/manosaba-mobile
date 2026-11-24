@@ -34,7 +34,7 @@ ios/run.sh resign           # sign the built app again with a fresh development 
                             # with DM_RESIGN_RENEW=1), then install it
 ios/run.sh push-data [what] # copy the profile's RomFS, system fonts and RomFS overlay into Library/Application Support: only what the phone
                             # lacks, holds at another size or what changed since the last push (SHA-256, ios/tools/push_hash.py)
-                            # (what: some of romfs sysfont overlay; e.g. push-data overlay after games/totk/romfs_overlay.py)
+                            # (what: some of romfs sysfont overlay)
 ios/run.sh launch [s]       # launch, wait s seconds (default 30), fetch Documents/boot.txt
 ios/run.sh log              # fetch the log now
 ```
@@ -112,18 +112,18 @@ app's signature: yes / no` (the entitlements read back from the executable's own
 - **Game data**: RomFS in `Library/Application Support/romfs` (`push-data`), `Documents/RomFS` (Files app; file sharing is on) or the app's
   own `RomFS` (`run.sh ipa` with `DM_IPA_DATA=1`), the first complete one in that order; system fonts in `sysfont` in the same three places. The
   RomFS is checked against the profile before the game starts; if something is missing the app shows what and where. A RomFS of many files
-  (Tears of the Kingdom: 304,243 files, about 17 GB) is quicker and safer to carry as parts: `tools/romfs_parts.py pack <RomFS> <out>` writes
+  is quicker and safer to carry as parts: `tools/romfs_parts.py pack <RomFS> <out>` writes
   `romfs.000.dmrp` … and `romfs.dmri`; copy them into `Documents` (Files app or Finder), and the next launch checks each part's SHA-256,
   unpacks it into `Library/Application Support/romfs` and deletes it (16 parts in about 4.5 minutes on an iPhone 17 Pro; a launch cut short
   carries on at the next; `host/runtime/romfs_parts.c`).
-- **RomFS overlay** (Tears of the Kingdom's quick-menu backgrounds and game over flow at 60 fps and up, `games/totk/romfs_overlay.py`):
+- **RomFS overlay** (a folder of changed copies of the game's files):
   `romfs_overlay` in the same three places (`push-data overlay` copies the workspace's `build/<game>/romfs_overlay`), served when its
   `manifest.tsv` says it was made from the RomFS beside it (`host/runtime/romfs_validate.c`); `DM_ROMFS_OVERLAY` in env.txt names another, empty turns
-  it off. Without it the 60 fps build draws the ability wheel (hold L) over black.
+  it off.
 - **Mods**: `Documents/mods` (Files app), one folder per mod (`<mod>/romfs`, or as shipped for Atmosphère), or an SD card's `atmosphere`
   folder copied as is; earlier names win, a name starting with `-` turns a mod off; code mods are not applied (`host/game/mods.c`).
-- **On-screen controls** (games with game.json `touch` "pad": Tears of the Kingdom; `DM_TOUCH=pad` / `screen` overrides the profile, e.g.
-  to try them with manosaba): BotWRecomp's layout (`host/front/touchpad.c`): a floating stick on the left half, D-pad, ABXY, L / R / ZL / ZR, - / +,
+- **On-screen controls** (game.json `touch` "pad", which manosaba's profile does not set: its touches go to the game; `DM_TOUCH=pad` turns
+  them on): BotWRecomp's layout (`host/front/touchpad.c`): a floating stick on the left half, D-pad, ABXY, L / R / ZL / ZR, - / +,
   L3 / R3, and the right half outside the buttons turns the camera by the finger's speed. The eye button collapses them to itself (kept across
   launches); a connected game controller turns them off. Settings app → this app → Touch Camera: the camera swipe's sensitivity (0.25-3×,
   applied before the turn speed saturates) and inverted axes (`DM_TOUCH_LOOK=<sensitivity>[,x][,y]` at launch). `DM_TEST_TOUCHPAD=check:<s>`
@@ -142,17 +142,13 @@ app's signature: yes / no` (the entitlements read back from the executable's own
   is noticed at the next launch (`Documents/boot.running`, `host/rundiag.h`): a red line says so and its log is kept as
   `boot.interrupted.txt` until another such session replaces it.
 - **Graphics settings** (Settings app → this app → Graphics): frame rate 60 / 30 fps (`DM_FPS`; the display link and ProMotion follow), render
-  resolution (`DM_RENDER_HEIGHT`, only for games whose hooks apply it — manosaba: `games/manosaba/graphics.c`; Tears of the Kingdom built with
-the code option `scene`: `games/totk/frame_step.c`, that many lines at 16:9; read at startup) and MetalFX
+  resolution (`DM_RENDER_HEIGHT`, applied by `games/manosaba/graphics.c`; read at startup) and MetalFX
   spatial upscaling of the presented picture (`DM_UPSCALE=metalfx`, `gfx/nvn/nvn_mtl.m` `fx_apply`; for a game whose profile names its own upscale
   or compose pass, that pass too: `fxp_dock` / `fxp_scene`, plan item 63). Frame rate and MetalFX follow a change on
   returning to the game; a variable set at launch wins until the setting is changed. iOS has no V-Sync switch: `CAMetalLayer.displaySyncEnabled`
   is macOS-only, a layer always presents in step with the display.
   The frame rate applied is held at 30 in Low Power Mode and, while "Hold 30 fps when hot" is on (`dm.hot_hold`, the default), from the
   thermal state Serious up (`nvn_fps_policy`, plan items 135 / 135a); the boot line says which.
-  The frame rate setting is a ceiling: a game paced at 30 fps by its own code stays there (Tears of the Kingdom's default product). Its 60 fps
-  build for a phone (plan item 62l): `DM_PRODUCT=build/totk/product60 DM_OPTIONS=fps60,realtime,scene ios/run.sh build` (the game's controller
-  then picks 60, 30 or 20 by its frame time; the options `output` and `aspect` stay out).
 - **Lifecycle**: in the background the guest clock, audio and graphics are suspended and pending iCloud uploads are flushed.
 
 ## Files

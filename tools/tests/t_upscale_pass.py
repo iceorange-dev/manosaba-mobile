@@ -2,8 +2,8 @@
 """The game's own upscale and compose passes (plan item 63): tools/gen_game.py takes game.json "upscale_pass" and "compose_pass" ({"fs": the
 fragment shader key, 16 hex digits; "color": perceptual / linear / hdr}) into the profile as .upscale_fs / .upscale_color and .compose_fs /
 .compose_color (MTLFXSpatialScalerColorProcessingMode: 0 / 1 / 2), which DeviceInitialize hands to the Metal layer (mtl_set_upscale_pass); without
-them .upscale_fs = 0 and .compose_fs = 0. A key that is not 16 hex digits, another colour, or another field is refused, in either. Tears of the
-Kingdom's profile: ac58fc18eda5f387 and 0ac9a54938974396, both hdr. The check left out (T_UPSCALE_PASS_NO_CHECK=1, the broken variant): 4 fail."""
+them .upscale_fs = 0 and .compose_fs = 0. A key that is not 16 hex digits, another colour, or another field is refused, in either; both given
+with hdr come out as 2. The check left out (T_UPSCALE_PASS_NO_CHECK=1, the broken variant): 4 fail."""
 import json, os, subprocess, sys, tempfile
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
 GEN = os.path.join(ROOT, 'tools', 'gen_game.py')
@@ -39,8 +39,7 @@ with tempfile.TemporaryDirectory() as d:
                      ('another field', {'fs': '0123456789abcdef', 'color': 'hdr', 'when': 'docked'})):
         r, c = run(up)
         check(f'{what}: refused', r.returncode != 0 and 'upscale_pass must be' in r.stderr, r.stdout + r.stderr)
-    totk = json.load(open(os.path.join(ROOT, 'games', 'totk', 'game.json')))
-    r, c = run(totk['upscale_pass'], totk, compose=totk['compose_pass'])
-    check('Tears of the Kingdom: ac58fc18eda5f387 and 0ac9a54938974396, both hdr (2)', r.returncode == 0 and '.upscale_fs = "ac58fc18eda5f387", .upscale_color = 2,' in c
+    r, c = run({'fs': 'ac58fc18eda5f387', 'color': 'hdr'}, compose={'fs': '0ac9a54938974396', 'color': 'hdr'})
+    check('both passes, hdr: .upscale_color 2 and .compose_color 2', r.returncode == 0 and '.upscale_fs = "ac58fc18eda5f387", .upscale_color = 2,' in c
           and '.compose_fs = "0ac9a54938974396", .compose_color = 2,' in c, r.stderr)
 print(f'== {total} checks, {fails} failed =='); sys.exit(fails != 0)

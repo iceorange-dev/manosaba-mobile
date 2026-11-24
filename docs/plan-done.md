@@ -1,7 +1,8 @@
 # Plan: finished items
 
-Every plan item with work done on it, one record each, by number (items 1-326, as of 2026-11-11). Code comments and commit subjects cite them
-as "plan item N". What is still open: [plan.md](plan.md).
+Every plan item with work done on it, one record each, by number (items 1-328, as of 2026-11-24). Code comments and commit subjects cite them
+as "plan item N". What is still open: [plan.md](plan.md). The records about Tears of the Kingdom describe a game that left the repository on
+2026-11-24 (the tag `totk-last`); they go with plan item 330.
 
 `- <item> · <state> · <what was done>`. The states: `b85`, done in the commit whose subject starts with "Plan batch 85" (its message has the
 measurements and the test results in full); `not taken`, measured or looked at and left as it is, with the reason; `part`, something is left
@@ -856,3 +857,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
+- 328 · part (b196) · Tears of the Kingdom's support removed (the user, 2026-11-24: the repository is manosaba's alone, on iOS and Android):
+  `games/totk`, `engines/bnsh`, their tests, the documents' sections and the batch's runs of it; the tag `totk-last` is the last commit with
+  it. Left: the shared code only it reached.

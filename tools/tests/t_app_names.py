@@ -22,7 +22,7 @@ with tempfile.TemporaryDirectory() as w:
     vals = {l: read_strings(os.path.join(w, l, 'InfoPlist.strings')).get('CFBundleDisplayName') for l in got}
     check('each read back by plutil as the title', vals and all(v == title for v in vals.values()), f'{vals}')
     odd = 'A "quoted" \\ title'
-    r = subprocess.run([sys.executable, AN, os.path.join(w, 'odd'), 'totk', odd, 'en'], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, AN, os.path.join(w, 'odd'), 'manosaba', odd, 'en'], capture_output=True, text=True)
     check('a quote and a backslash in the title escaped', r.returncode == 0 and read_strings(os.path.join(w, 'odd', 'en.lproj', 'InfoPlist.strings')).get('CFBundleDisplayName') == odd)
     r = subprocess.run([sys.executable, AN, os.path.join(w, 'bad'), '魔法', title, 'en'], capture_output=True, text=True)
     check('a name that is not ASCII: refused, nothing written', r.returncode != 0 and not os.path.exists(os.path.join(w, 'bad')), r.stderr)

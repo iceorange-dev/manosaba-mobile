@@ -2,8 +2,8 @@
 """The game's languages (plan item 170): tools/gen_game.py takes game.json "languages" (nn::settings codes, the profile's language among them) into
 the profile (.languages) and gives Apple's localizations for them (--get apple_localizations: en-US → en, zh-CN and zh-Hans → zh-Hans once); a code
 outside nn::settings, or a list without the profile's language, is refused; without the field the profile's language alone. ios/tools/
-project_lang.py puts them into project.yml as CFBundleLocalizations, right after CFBundleDisplayName, and refuses a malformed tag. Both games'
-profiles: manosaba zh-Hans and zh-Hant (its StreamingAssets/config.json), Tears of the Kingdom 14. The check of codes left out
+project_lang.py puts them into project.yml as CFBundleLocalizations, right after CFBundleDisplayName, and refuses a malformed tag. The game's
+profile: manosaba zh-Hans and zh-Hant (its StreamingAssets/config.json). The check of codes left out
 (T_GAME_LANG_NO_CHECK=1, the broken variant): 2 fail."""
 import json, os, subprocess, sys, tempfile
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
@@ -39,6 +39,6 @@ with tempfile.TemporaryDirectory() as d:
     check('project_lang.py: CFBundleLocalizations after CFBundleDisplayName', r.returncode == 0 and '        CFBundleDisplayName: $(DM_GAME_NAME)   # the game\'s id in ASCII (sideloading tools build the App ID from it); the title: Gen/Names\n        CFBundleLocalizations: ["zh-Hans", "zh-Hant"]\n' in y, r.stderr)
     r = subprocess.run([sys.executable, '-I', PL, os.path.join(ROOT, 'ios', 'project.yml'), out, 'zh Hans'], capture_output=True, text=True)
     check('... a malformed tag: refused', r.returncode != 0)
-    langs = {g: json.load(open(os.path.join(ROOT, 'games', g, 'game.json'))).get('languages') for g in ('manosaba', 'totk')}
-    check('the games: manosaba zh-Hans zh-Hant, Tears of the Kingdom 14 with its zh-Hant', langs['manosaba'] == ['zh-Hans', 'zh-Hant'] and len(langs['totk']) == 14 and 'zh-Hant' in langs['totk'], str(langs))
+    langs = json.load(open(os.path.join(ROOT, 'games', 'manosaba', 'game.json'))).get('languages')
+    check('the game: manosaba zh-Hans zh-Hant', langs == ['zh-Hans', 'zh-Hant'], str(langs))
 print(f'== {total} checks, {fails} failed =='); sys.exit(fails != 0)

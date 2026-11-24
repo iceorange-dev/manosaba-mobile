@@ -27,9 +27,8 @@
 #   run.sh sim-stop           shut the Simulators down (a booted one keeps its memory; sim-run boots it again)
 # Build switches: DM_FREE_ACCOUNT=1 (free developer account: no iCloud / extended VA / sustained-execution entitlements), DM_IOS_M3=1 (older-API build,
 # iOS 18), DM_DEVICE_FAMILY=1 (iPhone only), DM_ENV_FILE=<file> (DM_* switches read at launch, as Documents/env.txt is), DM_PRODUCT=<dir> (another
-# product than the profile's workspace.product, relative to DM_ROOT or absolute; e.g. Tears of the Kingdom's build/totk/product60 with
-# DM_OPTIONS=fps60,realtime,scene for 60 fps on a phone, plan item 62l), DM_OPTIONS (the code options written into the app, else the product's
-# options.default; ios/tools/gen_embed.py).
+# product than the profile's workspace.product, relative to DM_ROOT or absolute; plan item 62l), DM_OPTIONS (the code options written into the
+# app, else the product's options.default; ios/tools/gen_embed.py).
 set -u
 cd "$(dirname "$0")"
 source tools/local_env.sh

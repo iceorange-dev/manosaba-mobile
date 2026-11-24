@@ -3,8 +3,8 @@
 [[early_fragment_tests]]; one without the bit is not.
   1. The translator: a tiny pixel program (SPH + EXIT) as a job with early_z true and false (dmsh_build.py job_for's field), through
      gfx/tools/dmsh_xlate and spirv-cross with dmsh_build.py's MSL options: the attribute in the first only.
-  2. The built library (when the workspace has Tears of the Kingdom's capture and the chain's Mac library, b-<chain> from nvn/dmsh_chain.h): for
-     every pixel shader of the capture, the .metal has the attribute exactly when its control section sets the bit (1,677 of them in 1.4.3).
+  2. The built library (when the workspace has manosaba's capture and the chain's Mac library, b-<chain> from nvn/dmsh_chain.h): for every pixel
+     shader of the capture, the .metal has the attribute exactly when its control section sets the bit (none of manosaba's 1,338 sets it).
 DM_TEST_EARLY_Z_OFF=1 translates part 1's first job without the field, as before: 1 fails.
 Usage: t_early_z.py; XLATE = the translator (default $DM_ROOT/build/gfx/dmsh_xlate/dmsh_xlate), needs spirv-cross."""
 import glob, json, os, re, struct, subprocess, sys, tempfile
@@ -49,14 +49,14 @@ def part1():
     check('the flag clear: no [[early_fragment_tests]]', bool(src['off']) and not ATTR.search(src['off']))
 
 def part2():
-    gj = os.path.join(os.path.dirname(HERE), '..', 'games', 'totk', 'game.json')
+    gj = os.path.join(os.path.dirname(HERE), '..', 'games', 'manosaba', 'game.json')
     ws = json.load(open(gj)).get('workspace', {})
     cap = os.path.join(DM_ROOT, ws.get('shader_capture', ''))
     chain = re.search(r'"([0-9a-f]{12})"', open(os.path.join(os.path.dirname(HERE), 'nvn', 'dmsh_chain.h')).read()).group(1)
     lib = os.path.join(DM_ROOT, ws.get('msl_mac', ''), 'b-' + chain)
     if not os.path.isdir(cap) or not os.path.isdir(lib):
         print(f't_early_z: part 2 skipped (no capture at {cap} or no library at {lib})'); return
-    want = got = wrong = 0
+    want = got = wrong = seen = 0
     for ctl in glob.glob(os.path.join(cap, '*.ctl')):
         key = os.path.basename(ctl)[:-4]; data = open(os.path.join(cap, key + '.data'), 'rb').read(4 + 0x34)
         if data[:4] != bytes.fromhex('78563412'): continue
@@ -65,8 +65,8 @@ def part2():
         m = os.path.join(lib, key + '_b.metal')
         if not os.path.exists(m): continue
         flag = bool(open(ctl, 'rb').read()[0x718] & 1); has = bool(ATTR.search(open(m).read()))
-        want += flag; got += has; wrong += flag != has
-    check(f'the library b-{chain}: every pixel shader has the attribute exactly when its control section asks ({want} asked, {got} have it)', wrong == 0 and want > 0)
+        seen += 1; want += flag; got += has; wrong += flag != has
+    check(f'the library b-{chain}: each of {seen} pixel shaders has the attribute exactly when its control section asks ({want} asked, {got} have it)', wrong == 0 and seen > 0)
 
 if __name__ == '__main__':
     if not os.path.exists(XLATE): print(f't_early_z: skipped, no translator at {XLATE} (set DM_ROOT or XLATE)'); sys.exit(0)

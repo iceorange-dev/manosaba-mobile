@@ -30,5 +30,5 @@ r = acct.pick_device(doc(dev('W', 'U', paired='unpaired'))); s = acct.pick_devic
 check('untrusted / developer mode off: what to do', r[0] is None and 'Trust' in r[1] and s[0] is None and 'Developer Mode' in s[1], f'{r} {s}')
 check('none: connect it', acct.pick_device(doc())[0] is None and 'connect it' in acct.pick_device(doc())[1])
 check('the older JSON shape (properties.hardware)', acct.pick_device(doc(dev('W', 'UO', old=True))) == ('W', 'UO'))
-check('the bundle ID: dm.<game>.<team in lower case>', acct.bundle_id('totk', 'AB12CD') == 'dm.totk.ab12cd')
+check('the bundle ID: dm.<game>.<team in lower case>', acct.bundle_id('manosaba', 'AB12CD') == 'dm.manosaba.ab12cd')
 print(f'== {total} checks, {fails} failed =='); sys.exit(fails != 0)

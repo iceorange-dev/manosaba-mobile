@@ -6,7 +6,7 @@
       samples after the warm-up, MB an hour), frame time and GPU time early against late, red lines first seen after the warm-up. K screenshots
       are taken on the way through the command channel (DM_CMD), which also ends the run with "quit". --input (plan item 166): a cycle of
       command channel lines (key / down / up / sleep: it is timed in ms) repeated for the whole run around the screenshots, so the game is played
-      rather than left standing (games/totk/soak_walk.cmd); --input-after: from that second on (after the boot and the save's load).
+      rather than left standing; --input-after: from that second on (after the boot and the save's load).
   soak.py window --out DIR --frames A-B [--repeat N] [--clean DIR ...] [--env ...] -- <host command ...>
       Runs the host N times up to frame B and gives each run's frame time and GPU time over frames A-B (the "[nvn] timing" lines of the 300
       frames ending in that window), and their spread: the noise an A/B comparison of a fixed scene has to beat. --clean empties a directory
@@ -16,8 +16,8 @@
 
 The host gets DM_MEMSTAT=DIR/mem.tsv, DM_CMD=DIR/cmd.txt and a DM_WATCH backstop; its stderr goes to DIR/log.txt (DIR/run<i>/ for window).
 Examples (the paths as for any run of the host; see host/README.md):
-  DM_GAME=totk DM_ROOT=$PWD/work DM_SAVE=... tools/soak.py run --out /tmp/soak1 --minutes 20 -- host/dmhost
-  tools/soak.py window --out /tmp/win1 --frames 1800-3300 --repeat 3 --env DM_GAME=totk ... -- host/dmhost
+  DM_GAME=manosaba DM_ROOT=$PWD/work DM_SAVE=... tools/soak.py run --out /tmp/soak1 --minutes 20 -- host/dmhost
+  tools/soak.py window --out /tmp/win1 --frames 1800-3300 --repeat 3 --env DM_GAME=manosaba ... -- host/dmhost
 Checked by tools/tests/t_soak.py.
 """
 import argparse

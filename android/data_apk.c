@@ -1,5 +1,5 @@
-// The game data an APK carries (plan item 301h, the user 2026-10-30: manosaba's APK with its data, as the iPhone's IPA with it; Tears of the Kingdom
-// will import its data instead). apk.py --data stores the player's RomFS and the console's fonts as assets/romfs/ and assets/sysfont/ with an
+// The game data an APK carries (plan item 301h, the user 2026-10-30: manosaba's APK with its data, as the iPhone's IPA with it).
+// apk.py --data stores the player's RomFS and the console's fonts as assets/romfs/ and assets/sysfont/ with an
 // index each (the asset manager lists no subfolders). On its first start (and after an APK with other data) the app copies them out into the
 // external files folder, where adb's push-data puts them too: a file already there with its size is kept, so an interrupted copy goes on where it
 // stopped and an APK with the same data copies nothing. Each file through <file>.part, then renamed; the copy is the kernel's (sendfile from the

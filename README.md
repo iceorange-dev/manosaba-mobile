@@ -1,13 +1,9 @@
-# Switch games on Apple silicon, natively
+# 魔法少女ノ魔女裁判 (manosaba) on iPhone, iPad and Android, natively
 
-This repository runs Nintendo Switch games on iPhone, iPad and Mac without emulating the CPU. A Switch and an Apple device use the same class of
-processor, so the game's own aarch64 code executes directly. Only the few instructions that cannot run under Apple's kernel are rewritten
-offline; the console's system services and its NVN graphics API are reimplemented by a small host on Apple's frameworks and Metal; the game's
-shaders are translated to Metal ahead of time.
-
-The games are **魔法少女ノ魔女裁判** (manosaba), Switch version 2.0.4b, and **The Legend of Zelda: Tears of the Kingdom** 1.4.3, which plays
-on the Mac and on the iPhone and is newer and less tested ([status](#status-tears-of-the-kingdom-143)). The code is organized so that another
-game is a new directory under `games/` plus whatever services and graphics paths that game needs: see [PORTING.md](PORTING.md). Found a
+This repository runs the Nintendo Switch game **魔法少女ノ魔女裁判** (manosaba), version 2.0.4b, on iPhone, iPad, Android and Mac without
+emulating the CPU. A Switch and these devices use the same class of processor, so the game's own aarch64 code executes directly. Only the few
+instructions that cannot run under the device's kernel are rewritten offline; the console's system services and its NVN graphics API are
+reimplemented by a small host (on Apple's frameworks and Metal; on Android, Vulkan); the game's shaders are translated ahead of time. Found a
 problem? [Report it](#reporting-problems).
 
 It is a fork of [d2r-mobile](https://github.com/jhaizhou-ops/d2r-mobile), which ported Diablo II: Resurrected the same way; the D2R-specific code
@@ -41,27 +37,6 @@ On Android (plan item 301, under way): on a Redmi K100 Pro Max (Android 17) mano
 of its own (`gfx/nvn/vk/`, the game's shaders from the same translation as Metal's): the title, the prologue and the first trial checked so far,
 at 60 fps; what is left (the on-screen controls among it) is plan item 301 in [docs/plan.md](docs/plan.md).
 
-## Status (Tears of the Kingdom 1.4.3)
-
-Played on a Mac (Apple silicon, macOS 26) in a window, on an iPhone 17 Pro (iOS 26.4) and an iPhone Air (iOS 27), both with a free developer
-account, in handheld mode:
-
-- the title screen, the prologue with its tutorial and pre-rendered cutscenes (VP9 movies, decoded with libvpx, also on the iPhone), the dive
-  from the Great Sky Island and play after it;
-- frame rate: the default product runs at 30 fps; a product with the frame-rate rules runs at 60 fps (on the iPhone the game's own controller
-  then picks 60, 30 or 20 by its frame time) with a RomFS overlay that `games/totk/romfs_overlay.py` builds from your own RomFS: without it
-  the quick menus (the ability wheel) draw over black. On the Great Sky Island the iPhone 17 Pro held about 59.5 fps at a 1280x720 scene; the
-  thinner iPhone Air runs near 60 until it is hot, a minute or two in, and at 30 from then on;
-- on the iPhone: on-screen controls (a floating stick, the buttons and a camera swipe; a game controller turns them off), the RomFS carried
-  as 1 GiB parts and unpacked at the first launch ([ios/README.md](ios/README.md#on-the-device)), and the increased memory limit signed by a
-  free account (6.1 GB on the iPhone 17 Pro).
-
-Not verified or known open: other iPhones and iPads (iPhones with an A14, A15 or A16 have no BC texture support: BC1 is turned into ASTC, the
-other BC formats are decompressed, so the game needs more memory there); the iOS 18 (Metal 3) build with this game; stencil views are not
-modelled; motion controls and a controller's rumble are implemented but not yet checked with a controller. A crash after skipping the blood
-moon movie (Mac, 2026-10-19) did not come back when the movie was skipped on the iPhone with the 60 fps product (2026-10-22); with the 30 fps
-product it has not been tried again. Details: [DEVELOPMENT.md](DEVELOPMENT.md#tears-of-the-kingdom).
-
 ## How it works
 
 | Part | Directory | What it does |
@@ -69,9 +44,9 @@ product it has not been tried again. Details: [DEVELOPMENT.md](DEVELOPMENT.md#te
 | Rewriter | `tools/patch_nso.py` | Rewrites x18, thread pointer, `svc` and timer instructions into jumps to small patch blocks; the rest of the code is untouched |
 | Verification | `verify/` | Proves the rewritten modules equivalent to the originals (structure, per site, per function, gates) |
 | Host | `host/` | Loader (rtld), kernel calls, `nn::` services (file system, input, audio, time, movies, fonts, …) |
-| Graphics | `gfx/` | NVN on Metal, record and replay; offline shader translation (Ryujinx translator → SPIR-V → MSL → metallib) |
-| Apps | `ios/`, `tools/mac_app.sh` | iOS app; Mac command-line host and `.app` |
-| Per game | `games/<id>/`, `engines/<engine>/` | Game profile, rewriter rules, hooks; engine-specific tools (Unity shader extraction) |
+| Graphics | `gfx/` | NVN on Metal (on Vulkan for Android), record and replay; offline shader translation (Ryujinx translator → SPIR-V → MSL → metallib) |
+| Apps | `ios/`, `android/`, `tools/mac_app.sh` | iOS app; Android app; Mac command-line host and `.app` |
+| The game | `games/manosaba/`, `engines/unity/` | Game profile, rewriter rules, hooks; Unity shader extraction |
 
 ## Getting started
 
@@ -97,8 +72,8 @@ product it has not been tried again. Details: [DEVELOPMENT.md](DEVELOPMENT.md#te
 
 Problems are welcome as [GitHub issues](https://github.com/iceorange-dev/manosaba-ios/issues/new/choose). Please say:
 
-- the game and its version, the device and its iOS or macOS version;
-- the build: the commit, iOS 26 or iOS 18 (`DM_IOS_M3=1`), and for Tears of the Kingdom the 30 or 60 fps product;
+- the game's version, the device and its iOS, Android or macOS version;
+- the build: the commit, and iOS 26, iOS 18 (`DM_IOS_M3=1`) or Android;
 - what happened and how to get there (where in the game, what you pressed);
 - on iOS, attach the diagnostics file: touch and hold the app's icon → Export Diagnostics (device, GPU, memory, settings and the last logs;
   [ios/README.md](ios/README.md#on-the-device)). On the Mac, the log: `~/Library/Logs/<game id>/host.log` for the `.app`, the terminal
@@ -110,8 +85,8 @@ Do not attach game files, keys, dumps, rewritten modules or IPAs.
 
 | Document | Covers |
 |---|---|
-| [PORTING.md](PORTING.md) | The workflow for a new game, from the dump to the device |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Restoring a working copy, test procedures, where the work stands, how Tears of the Kingdom runs |
+| [PORTING.md](PORTING.md) | The workflow from the dump to the device (written for any game) |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Restoring a working copy, test procedures, where the work stands |
 | [docs/plan.md](docs/plan.md), [docs/plan-done.md](docs/plan-done.md) | What is left to do; every finished plan item in a few lines (the "plan item N" of code comments) |
 | [docs/sources.md](docs/sources.md) | Community ports drawn from, how far each was read, what was taken from each and what not |
 | [games/README.md](games/README.md) | Game directory: `game.json`, `rules.py`, C hooks |
