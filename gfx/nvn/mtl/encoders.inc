@@ -284,10 +284,6 @@ static uint64_t gpu_ticks(void) { return (guest_ns() + gpu_late_ns()) * 12 / 625
 // DM_NVN_TS_SCALE=<x>: report times spread x times further from their submission's GPU start (the game sees a GPU x times slower: does its dynamic
 // resolution react), 1 = off
 static double ts_scale(void) { static double v = -1; if (v < 0) { const char *e = getenv("DM_NVN_TS_SCALE"); v = e ? atof(e) : 1; if (v <= 0) v = 1; if (v != 1) MLOG("DM_NVN_TS_SCALE=%g: counter report times %g times further apart", v, v); } return v; }
-// Frame-rate trials (plan item 216, nvn_fptrial.h; hle_nvn.c sets it at every present): a factor on the report times of the submissions committed
-// from then on, as DM_NVN_TS_SCALE's; 1 = the real times
-static _Atomic uint32_t g_ts_factor = 1000;   // thousandths
-void mtl_ts_factor(double f) { atomic_store(&g_ts_factor, f > 0.001 && f < 1000 ? (uint32_t)(f * 1000 + 0.5) : 1000); }
 // DM_NVN_GPU_TS=completion: every report of a submission at its completion, as before plan item 131 (A/B)
 static int ts_inside(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_GPU_TS"); v = !(e && !strcmp(e, "completion")); if (!v) MLOG("DM_NVN_GPU_TS=completion: counter reports at their submission's completion"); } return v; }
 

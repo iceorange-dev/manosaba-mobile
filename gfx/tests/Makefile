@@ -97,10 +97,6 @@ t_pace: t_pace.c ../nvn/nvn_pace.h
 	clang -O1 -Wall -o $@ t_pace.c
 t_ts: t_ts.c ../nvn/nvn_ts.h
 	clang -O1 -Wall -o $@ t_ts.c
-t_fstep: t_fstep.c ../nvn/nvn_fstep.h
-	clang -O1 -Wall -o $@ t_fstep.c
-t_fptrial: t_fptrial.c ../nvn/nvn_fptrial.h
-	clang -O1 -Wall -o $@ t_fptrial.c
 t_copy_pitch: t_copy_pitch.c ../nvn/nvn_copy_pitch.h
 	clang -O1 -Wall -Werror -o $@ t_copy_pitch.c
 t_pool_find: t_pool_find.c ../nvn/nvn_pool_find.h
@@ -448,8 +444,6 @@ run: \
 	t_rtheap \
 	t_passgpu \
 	t_ts \
-	t_fstep \
-	t_fptrial \
 	t_pend \
 	t_perfline \
 	t_pfv \
@@ -524,8 +518,6 @@ run: \
 	./t_deswz_gpu
 	./t_pace
 	./t_ts
-	./t_fstep
-	./t_fptrial
 	./t_hmap
 	./t_quad_strip
 	@status=0; ./t_quad_strip_abc > t_quad_strip_abc.log 2>&1 || status=$$?; \

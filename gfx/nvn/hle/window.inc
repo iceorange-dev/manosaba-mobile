@@ -69,27 +69,9 @@ void nvn_fps_hold(int fps) {
     int old = atomic_exchange(&g_fps_hold, fps);
     if (old != fps) { if (fps) LOG("[nvn] frame rate held at %d fps (the game extends the user inactivity time)", fps); else LOG("[nvn] frame rate hold released"); }
 }
-// The frame step in whole vsyncs (plan item 133, nvn_fstep.h): DM_FRAME_STEP=vsync for a game whose step the host sets (dm_game_realtime_step):
-// each frame stays on screen k vsyncs of 60 Hz, the game gets k (k + 1 while it pays back lost time) through nvn_fstep_step(), the game's own
-// present interval is not used for pacing and uncapped pacing is off. Off by default: the realtime step follows the measured frame time (frame_step.c)
-static nvn_fstep g_fs; static int g_fs_step; static uint64_t g_fs_start, g_fs_prev_start; static int g_fs_started; static double g_fs_game, g_fs_real;
-int dm_game_realtime_step(void);   // (its weak default is below)
-static int fstep_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_FRAME_STEP"); v = e && !strcmp(e, "vsync") && dm_game_realtime_step();
-    if (e && !strcmp(e, "vsync") && !v) LOG("[nvn] [red] DM_FRAME_STEP=vsync needs a game whose step the host sets (Tears of the Kingdom's option realtime)");
-    const char *o = getenv("DM_FSTEP_OPT"); g_fs.opt = !(o && !strcmp(o, "0"));   // trials whatever the cost, with a grace period (plan item 222)
-    const char *r = getenv("DM_FSTEP_RULES"); g_fs.no321 = r && !strcmp(r, "0");   // plan item 321's rules (the window at kmin, the probes); 0: as before, for an A/B
-    if (g_fs.no321) LOG("[nvn] frame step: plan item 321's rules off (DM_FSTEP_RULES=0): three late frames in a row step up from kmin, no probes");
-    if (v) LOG("[nvn] frame step in whole vsyncs: each frame shown k vsyncs of 60 Hz, the game steps k (DM_FRAME_STEP=vsync)%s",
-               g_fs.opt ? "; a trial of k - 1 every 5 s or more whatever the cost, its first second not counted late (DM_FSTEP_OPT=0 turns that off)" : ""); } return v; }
-static nvn_fpath g_fs_path;   // where each frame's submits began (plan item 321: the cost as the critical path, pacing.inc)
-static void fstep_submit_note(void) { if (fstep_on()) nvn_fpath_submit(&g_fs_path, g_frame, now_ns()); }   // nvnQueueSubmitCommands
-int nvn_fstep_step(void) { return fstep_on() ? g_fs_step : 0; }   // the step for the frame the game is about to make, in vsyncs (0 = not in this mode)
 int mtl_fps_target(void);   // nvn_mtl.m: the player's frame rate target (DM_FPS, the iOS setting, 135's thermal hold)
-// The rate the host holds frames at now, 0 for none: the game's hold (130) or the player's target below 60 (DM_FPS, the iOS setting, 135's thermal
-// hold). For a game's host code that judges late frames (plan item 190, games/totk/frame_step.c): a frame held at 30 is not a dropped one
-int nvn_held_fps(void) { return nvn_pace_hold(atomic_load(&g_fps_hold), mtl_fps_target()); }
+int dm_game_realtime_step(void);   // (its weak default is in pacing.inc)
 static int win_interval(const win_t *o) {
-    if (fstep_on()) return g_fs.k > 0 ? g_fs.k : 1;
     return nvn_hold_interval(g_display_mode ? 1 : o->interval, g_hz, nvn_pace_hold(atomic_load(&g_fps_hold), mtl_fps_target())); }   // (plan item 135b)
 NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsync *s, int *idx) {
     NVN_BLOCKING();
@@ -130,7 +112,6 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
     // MIT: TOTK_ACQ_SYNC). DM_NVN_ACQ_SYNC=newest restores that (A/B)
     if (s) { static int newest = -1; if (newest < 0) { const char *e = getenv("DM_NVN_ACQ_SYNC"); newest = e && !strcmp(e, "newest"); if (newest) LOG("[nvn] DM_NVN_ACQ_SYNC=newest: the acquire sync waits for the newest submission"); }
              if (newest && xlat_on()) sync_token_store((sync_t *)s, x_token()); else sync_fence_store((sync_t *)s, newest ? mtl_last_fence() : 0); }
-    if (!g_fs_started) { g_fs_started = 1; g_fs_prev_start = g_fs_start; g_fs_start = now_ns(); }   // a frame starts when its first acquire returns (nvn_fstep.h)
     trace_end(TR_ACQUIRE, tr, (uint64_t)*idx, wait);
     return NVN_WINDOW_ACQUIRE_TEXTURE_RESULT_SUCCESS;
 }

@@ -137,7 +137,6 @@ void mtl_set_tex_pool_n(int n) { (void)n; }
 void mtl_set_c2_layout(int tex, int ntex, int samp, int nsamp) { (void)tex; (void)ntex; (void)samp; (void)nsamp; }
 void mtl_set_depth_mode(int m) { (void)m; }
 void mtl_set_frame(uint64_t f) { (void)f; }
-void mtl_ts_factor(double f) { (void)f; }
 void mtl_read_texels(const tex_t *t, unsigned level, unsigned layer0, const NVNcopyRegion *r, uint8_t *dst, size_t row, size_t img) {
     (void)t; (void)level; (void)layer0; (void)r; (void)dst; (void)row; (void)img;
     static int said; if (!said++) LOG("[red] null backend: a CPU read of texels (ReadTexels) gets nothing; the buffer keeps what it held");

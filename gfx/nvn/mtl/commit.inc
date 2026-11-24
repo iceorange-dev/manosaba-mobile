@@ -74,7 +74,6 @@ uint64_t mtl_sub_commit(void) {
     uint64_t gpu_f = atomic_load(&g_cur_frame); gpu_tag_begin(gpu_f);
     NSString *cctx = @(cctx_snap());
     uint32_t work = g_sub_work; sub_clk *sclk = g_sclk; g_sclk = NULL;   // the parts committed before this one (mid-submission commits), or none
-    double tsf = atomic_load(&g_ts_factor) / 1000.0;   // the frame-rate trial's factor when this submission was committed (plan item 216)
     [FB_ON(o, g_cb) FB_SEL:^(FB_ARG cb) {
         gpu_tag_done(gpu_f, cb.GPUStartTime, cb.GPUEndTime); trace_at(TR_GPU, cb.GPUStartTime, cb.GPUEndTime, fence, tr_part);
         // each report's place among the parts' GPU start / end on the guest clock (nvn_ts.h ts_place): parts committed earlier, then this one
@@ -83,7 +82,7 @@ uint64_t mtl_sub_commit(void) {
             if (sclk) for (int k = 0; k < sclk->n; k++) { pw[k + 1] = sclk->w[k + 1]; ps[k] = atomic_load(&sclk->s[k]); pe[k] = atomic_load(&sclk->e[k]); parts++; }
             pw[parts] = work; ps[parts - 1] = ts_guest_ns(cb.GPUStartTime, hn, gn); pe[parts - 1] = ts_guest_ns(cb.GPUEndTime, hn, gn); }
         sclk_put(sclk);
-        double tsk = ts_scale() * tsf;
+        double tsk = ts_scale();
         #define REPORT_TICKS(o_) ({ uint64_t ns_ = inside ? ts_place(pw, ps, pe, parts, (o_).pos, (o_).type == NVN_COUNTER_TYPE_TIMESTAMP_TOP) : 0; \
             if (ns_ && tsk != 1 && ps[0] && ns_ > ps[0]) ns_ = ps[0] + (uint64_t)((ns_ - ps[0]) * tsk); ns_ ? (ns_ + late) * 12 / 625 : gpu_ticks(); })
         if (cb.error) { atomic_store(&g_last_commit_error, 1); static int n, nv; int victim = [cb.error.description containsString:@"InnocentVictim"]; if (victim ? nv++ < 1 : n++ < 8) MLOG("[red] command buffer error details fence=%llu: %s | GPU %.3f→%.3f", (unsigned long long)fence, cb.error.description.UTF8String, cb.GPUStartTime, cb.GPUEndTime); if (!victim) MLOG("[red] context of the failing submit fence=%llu: %s", (unsigned long long)fence, cctx.UTF8String); MLOG("[red] command buffer execution error: %s", cb.error.localizedDescription.UTF8String); }

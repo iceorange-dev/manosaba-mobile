@@ -50,7 +50,6 @@ static void udc_selftest(void) {
 void mtl_init(void) { @autoreleasepool {
     if (g_dev) return;
     g_res_check_on = getenv("DM_RES_CHECK") != NULL;
-    g_gpu_span_host = 1;   // GPUStartTime / GPUEndTime are on the host's clock (core/frame.h)
     g_dev = MTLCreateSystemDefaultDevice();
     if (!g_dev) MDIE("no Metal device");
 #if TARGET_OS_SIMULATOR   // the Simulator's stand-in reports none; its buffers are the Mac's (plan item 114: tried as they are)

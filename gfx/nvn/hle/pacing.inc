@@ -55,10 +55,10 @@ static void present_cfg(const win_t *o) {
     if (g_hz >= 0) return;
     // With a window the default is still display interval mode; without a window the default is game mode. Environment variables can override the fixed 60 Hz.
     int scr = mtl_display_hz();
-    const char *e = getenv("DM_PRESENT_HZ"); g_hz = e && !fstep_on() ? atoi(e) : 60;   // (the vsync step counts 60 Hz vsyncs)
+    const char *e = getenv("DM_PRESENT_HZ"); g_hz = e ? atoi(e) : 60;
     if (g_hz > 0 && (g_hz < 30 || g_hz > 120)) { LOG("[nvn] [red] DM_PRESENT_HZ=%d outside 30..120: 60", g_hz); g_hz = 60; }
     if (g_hz > 0) { void mtl_link_set_rate(int hz); mtl_link_set_rate(g_hz); }
-    if (!fstep_on()) { int uc = nvn_uncapped_hz(dm_game_realtime_step(), e, getenv("DM_UNCAPPED"), getenv("DM_UNCAPPED_HZ"), scr);
+    { int uc = nvn_uncapped_hz(dm_game_realtime_step(), e, getenv("DM_UNCAPPED"), getenv("DM_UNCAPPED_HZ"), scr);
       if (uc) { g_uncapped = 1; g_hz = uc; void mtl_link_set_rate(int hz); mtl_link_set_rate(scr > 0 ? scr : 60);
           LOG("[nvn] uncapped pacing (DM_UNCAPPED=0 turns it off): the game does not wait for the display, our clock paces it at up to %d fps (DM_UNCAPPED_HZ); "
               "the display (%d Hz) shows the newest finished frame at each refresh", uc, scr); } }
@@ -85,7 +85,7 @@ static void present_cfg(const win_t *o) {
 static _Atomic int g_pro_last;
 void nvn_display_rate_now(int now_hz) {
     static int disp = -1; if (disp < 0) disp = mtl_display_hz();
-    if (g_hz < 0 || g_uncapped || fstep_on()) return;   // (before the first present the configuration is not made yet)
+    if (g_hz < 0 || g_uncapped) return;   // (before the first present the configuration is not made yet)
     int held = mtl_fps_target() < 60, hz = nvn_promotion_hz(dm_game_realtime_step(), getenv("DM_PRESENT_HZ"), getenv("DM_PROMOTION"), disp, now_hz, held);
     if (!hz || hz == atomic_load(&g_pro_last)) return;
     atomic_store(&g_pro_last, hz); g_hz = hz; void mtl_link_set_rate(int hz); mtl_link_set_rate(hz);
@@ -106,93 +106,8 @@ __attribute__((weak)) void dm_movie_tick(void) {}   // host hle_movie.c: hands p
 __attribute__((weak)) void dm_game_present(void) {}   // game hook (host/game.h): every present, on the game's thread; none in the graphics unit tests
 __attribute__((weak)) void dm_sdk_test_present(uint64_t frame) { (void)frame; }   // host/diag/sdktest.c (DM_SDK_TEST); none in the graphics unit tests
 __attribute__((weak)) int dm_game_realtime_step(void) { return 0; }   // game hook (host/game.h): the game's step follows the measured frame time
-// Frame-rate trials (plan item 216, nvn_fptrial.h): with the player's target at 60 and nothing holding the rate, a game that picks its own interval
-// from the GPU time it reads (Tears of the Kingdom's controller, rules.py fps60) and sits at interval 2 or 3 reads shorter GPU times for a while,
-// so it tries 60 and the GPU's clock can come up. Only for a game whose step the host sets (its speed then holds at any interval), at a present rate
-// of 60 Hz in game interval mode (not the host's frame step, not uncapped). DM_FPS_TRIAL=1 turns them on: on the iPhone 17 Pro at 60 Hz none of 22
-// trials on Great Sky Island held (its sustained rate is under 60 there) and each failed one is seconds of uneven frames, so they stay off until a
-// scene where they hold is measured
-static nvn_fptrial g_fpt;
-void mtl_ts_factor(double f);   // nvn_mtl.m: the factor on the report times of the next submissions
-static int fpt_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_FPS_TRIAL"); v = e && !strcmp(e, "1") && dm_game_realtime_step();
-    if (v) LOG("[fps trial] on: a game held at interval 2 or 3 for %.0f s with the target at 60 reads its GPU times x%.2f until it picks 60, then %.0f s more (DM_FPS_TRIAL=1)",
-               FPT_WAIT0, FPT_FACTOR, FPT_GRACE_S); } return v; }
-// DM_NVN_TS_DVFS=<x> (a diagnostic, for a Mac): report times x times further apart once frames have been paced at interval 2 or 3 (the game's own
-// or a hold's) for 1 s, the real times 0.5 s after interval 1, as an iPhone's GPU clock follows the frame rate (what the trials are for)
-static double dvfs_emu(int itv, double now) {
-    static double x = -1, since, cur = 1; static int last = -1;
-    if (x < 0) { const char *e = getenv("DM_NVN_TS_DVFS"); x = e ? atof(e) : 0; if (x > 1) LOG("[nvn] DM_NVN_TS_DVFS=%g: report times %g times apart after 1 s at interval 2 or 3 (a diagnostic)", x, x); else x = 0; }
-    if (!x) return 1;
-    if (itv != last) { last = itv; since = now; }
-    if (itv >= 2 && now - since >= 1.0) cur = x; else if (itv < 2 && now - since >= 0.5) cur = 1;
-    return cur;
-}
-static void fpt_present(const win_t *o) {
-    double now = now_ns() / 1e9, f = 1;
-    if (fpt_on()) {
-        int want = g_hz == 60 && !g_display_mode && !g_uncapped && !fstep_on() && mtl_fps_target() >= 60 && !atomic_load(&g_fps_hold);
-        nvn_fptrial was = g_fpt;
-        f = nvn_fptrial_step(&g_fpt, now, o->interval, want);
-        static unsigned logs;
-        if (g_fpt.st != was.st && (logs++ < 64 || logs % 32 == 0)) {
-            if (g_fpt.st == FPT_PUSH) LOG("[fps trial] %llu: interval %d for %.0f s with the target at 60: GPU times x%.2f until the game picks 60", (unsigned long long)g_fpt.trials, o->interval, now - was.since, FPT_FACTOR);
-            else if (g_fpt.st == FPT_GRACE) LOG("[fps trial] interval 1 after %.1f s: x%.2f for %.0f s more while the GPU clock comes up", now - was.since, FPT_FACTOR, FPT_GRACE_S);
-            else if (g_fpt.st == FPT_WATCH) LOG("[fps trial] the real GPU times again: held if the game stays at 60 for %.0f s", FPT_WATCH_S);
-            else if (g_fpt.held != was.held) LOG("[fps trial] held: 60 fps on the real times (%llu held, %llu failed of %llu trials)", (unsigned long long)g_fpt.held, (unsigned long long)g_fpt.failed, (unsigned long long)g_fpt.trials);
-            else if (g_fpt.failed != was.failed) LOG("[fps trial] failed (%s): next trial after %.0f s at interval 2 or 3 (%llu held, %llu failed of %llu trials)",
-                g_fpt.unlowered != was.unlowered ? "the game did not pick interval 1" : was.st == FPT_GRACE ? "back up on the shorter times: its CPU time" : "back up on the real times", g_fpt.wait,
-                (unsigned long long)g_fpt.held, (unsigned long long)g_fpt.failed, (unsigned long long)g_fpt.trials);
-            else LOG("[fps trial] stopped: the target or a hold changed");
-        }
-    }
-    mtl_ts_factor(f * dvfs_emu(win_interval(o), now));
-}
-// Plan item 321: whether the frames run slowed for reasons other than the scene (nvn_fstep.slow, which lets the frame step probe back to kmin): the
-// CPU under 30 % of the process's CPU time on performance cores in each of the last two windows of 30 presents, on a system with two kinds of core,
-// at thermal state nominal or fair and Low Power Mode off (S2Arm: Tears of the Kingdom on an iPhone parked at 6 % on performance cores at 1.6 GHz
-// while it waited out a long hold, where the cost never fitted k − 1 again; one window alone dips that low on a Mac at 30 fps now and then); or the
-// GPU at the longer hold 1.3 times its time at kmin and alone over k − 1 (nvn_fstep_gpu_slowed: its clock lowered to the hold)
-int dm_low_power_now(void);
-static int g_fs_pshare = -1;   // the last window's share on performance cores, percent (-1: not measured)
-static int fstep_cpu_slowed(void) {
-    static int levels = -1, slowed, low_was; static uint64_t pc, pp, n;
-    if (levels < 0) levels = dm_perf_levels();
-    if (levels < 2) return 0;
-    if (++n % 30) return slowed;
-    dm_power pw; if (!dm_power_now(&pw)) return slowed;
-    if (pc && pw.cpu_ns > pc) g_fs_pshare = (int)(100 * (pw.pcpu_ns - pp) / (pw.cpu_ns - pc));
-    pc = pw.cpu_ns; pp = pw.pcpu_ns;
-    int low = g_fs_pshare >= 0 && g_fs_pshare < 30;
-    slowed = low && low_was && dm_thermal_now() <= 1 && !dm_low_power_now(); low_was = low;
-    return slowed;
-}
-static nvn_fgpu g_fs_gpu;   // the GPU time at kmin and at the current hold (nvn_fstep_gpu_slowed)
 NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
     uint64_t tr = trace_now();
-    if (fstep_on()) {   // the step for the next frame from this one's time on screen and cost (nvn_fstep.h), before the game's hook stores it
-        const double vs = 1e9 / 60; uint64_t now = now_ns();
-        double shown = g_fs_prev_start && g_fs_start > g_fs_prev_start ? (g_fs_start - g_fs_prev_start) / vs : 0, cpu = g_fs_start && now > g_fs_start ? (now - g_fs_start) / vs : 0;
-        double gpu = g_frame >= 8 ? mtl_gpu_ms(g_frame - 8) : -1, gv = gpu > 0 ? gpu * 1e6 / vs : 0, path = 0; uint64_t pg0, pg1;
-        // The critical path of the frame whose GPU time this is, from where its submits began to its GPU work's end (plan item 321, nvn_fstep_cost): on
-        // a backend whose GPU times are on the host's clock. DM_FSTEP_RULES=0: measured for the log, max(CPU, GPU) used as before
-        if (g_gpu_span_host && gpu > 0 && mtl_gpu_span(g_frame - 8, &pg0, &pg1)) path = nvn_fpath_vsyncs(&g_fs_path, g_frame - 8, pg1, vs);
-        double cost = nvn_fstep_cost(cpu, gv, g_fs.no321 ? 0 : path);
-        static double cs_cpu, cs_gpu, cs_path; static int cs_n, cs_np; cs_cpu += cpu; cs_gpu += gv; cs_n++; if (path > 0) { cs_path += path; cs_np++; }
-        if (shown > 0) { g_fs_game += g_fs_step; g_fs_real += shown; }
-        int kmin = nvn_hold_interval(1, 60, nvn_pace_hold(atomic_load(&g_fps_hold), mtl_fps_target()));
-        int gslow = nvn_fstep_gpu_slowed(&g_fs_gpu, gpu > 0 ? gpu * 1e6 / vs : 0, g_fs.k, kmin, g_fs.probe), cslow = fstep_cpu_slowed();   // plan item 321
-        if ((cslow || gslow) != g_fs.slow) LOG("[frame step] the frames %s (CPU %d%% on performance cores, GPU at the hold %.2f against %.2f vsyncs at kmin)", cslow || gslow ? "slowed: a probe back to kmin may start" : "no longer slowed",
-                                               g_fs_pshare, g_fs_gpu.cur, g_fs_gpu.ref);
-        g_fs.slow = cslow || gslow;
-        g_fs_step = nvn_fstep_next(&g_fs, shown, cost, kmin, FSTEP_MAX);
-        g_fs_started = 0;
-        if (g_fs.frames % 300 == 0) { LOG("[frame step] vsync step at frame %llu: k %d, step %d; %llu late, %llu up, %llu down (%llu failed, %llu probes), %llu paid back, %.0f vsyncs dropped; game time / real time %.4f; "
-                "the cost since the last line: CPU %.2f, GPU %.2f, critical path %.2f vsyncs (%d of %d frames with a path%s)",
-            (unsigned long long)g_fs.frames, g_fs.k, g_fs_step, (unsigned long long)g_fs.late, (unsigned long long)g_fs.ups, (unsigned long long)g_fs.downs, (unsigned long long)g_fs.failed, (unsigned long long)g_fs.probes,
-            (unsigned long long)g_fs.paid, g_fs.dropped, g_fs_real > 0 ? g_fs_game / g_fs_real : 0,
-            cs_n ? cs_cpu / cs_n : 0, cs_n ? cs_gpu / cs_n : 0, cs_np ? cs_path / cs_np : 0, cs_np, cs_n, g_fs.no321 ? "; DM_FSTEP_RULES=0: max(CPU, GPU) is the cost" : "");
-            cs_cpu = cs_gpu = cs_path = 0; cs_n = cs_np = 0; }
-    }
     dm_game_present(); dm_sdk_test_present(g_frame);
     dm_movie_tick();   // before the core is given away: it signals the game's movie events (guest code)
     NVN_BLOCKING();
@@ -202,7 +117,6 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
     { static int gate;
       if (!gate && g_nvn_loadscreen_up && g_nvn_loadscreen_up()) { gate = 1; int ms = mtl_warm_wait(15000); if (ms) LOG("[nvn] run-entry loading screen waited %d ms for pipeline warm-up", ms); } }
     present_cfg(o);
-    fpt_present(o);   // frame-rate trials (plan item 216): the report times' factor for the submissions from here on
     { static long sf = -1; static double ss; if (sf < 0) { const char *e = getenv("DM_TEST_PRESENT_STALL"); sf = 0; if (e) { sf = atol(e); const char *c = strchr(e, ':'); ss = c ? atof(c + 1) : 8; } }
       if (sf > 0 && g_frame == (uint64_t)sf) { LOG("DM_TEST_PRESENT_STALL: present held for %.1f s at frame %llu", ss, (unsigned long long)g_frame); usleep((useconds_t)(ss * 1e6)); } }
     { static long ha = -1, hb; static int hf;   // DM_TEST_FPS_HOLD=<from>:<to>:<fps>: the frame-rate hold of plan item 130 between two frames, without a movie

@@ -8,6 +8,5 @@ void mtl_prog_release(prog_t *p) { (void)p; }
 void mtl_prog_fkeys(uint64_t serial, const uint8_t fk[6][8]) { (void)serial; (void)fk; }
 void mtl_sub_index(const uint64_t *h, int n) { (void)h; (void)n; }
 void mtl_set_depth_mode(int m) { (void)m; }
-void mtl_ts_factor(double f) { (void)f; }
 int mtl_warm_wait(int timeout_ms) { (void)timeout_ms; return 0; }
 void mtl_texdump_next(const char *path) { (void)path; }

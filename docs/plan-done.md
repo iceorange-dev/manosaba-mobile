@@ -275,9 +275,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 131 · b33 · the game's GPU time: each TIMESTAMP report takes its place inside the submission (`gfx/nvn/nvn_ts.h`); the game reads p50
   6.33 ms. `DM_NVN_GPU_TS=completion` restores the old timing.
 - 131a · b61, b117 · what sets the game's dynamic resolution: looked for in b61 (no enable bit found), answered by 276 (the controller main+0x584300).
-- 133 · part (b35) · a frame step in whole vsyncs, as a switch (`DM_FRAME_STEP=vsync`; nxnative's design and numbers written anew, MIT):
-  35 % less CPU than the mean step with uncapped pacing (the default, unchanged) in the 60 fps product's prologue on the Mac. Not needed:
-  FPSLocker's three swapchain textures. Left: iOS's default, the user's choice.
 - 134 · b36 · iOS audio: the session asks for 48 kHz and a 5 ms I/O buffer (nxnative 18c6143); a watchdog (after nxnative b301431, MIT)
   retries silent units.
 - 135 · b37 · iOS: the frame rate setting held at 30 in Low Power Mode or from thermal state Serious up (after super-mario-odyssey-ios's
@@ -431,8 +428,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   the app ahead of time).
 - 215 · b73 · the fps line kept its last "on screen" rate when no frame came with a screen time; now "on screen –" after 1.5 s of
   presents without one.
-- 216 · b77 · frame-rate trials (`gfx/nvn/nvn_fptrial.h`, `DM_FPS_TRIAL=1`): a game held at interval 2 or 3 reads its report times drawn toward
-  the GPU start; on the phone at 60 Hz none of 22 trials held: off by default.
 - 217 · b84 · single-draw passes up to 256x256 as compute kernels (210 reopened; after nxport's `tiny_kernels.rs`, MIT, written anew), opt-in
   (`DM_NVN_KPASS=1`): no GPU time saved on the phone's island, 12.6 / 13.0 against 12.3 / 12.4 ms.
 - 218 · not taken (b185) · the G-buffer split by two depth-probe dispatches (3c8e9ba061067c07_b, bc58d5dec860c367_b) that fill a grid of
@@ -441,7 +436,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 219 · part (b186, b187, b194) · the TBDR rewrites that merge or defer passes. Great Sky Island: 228's set 230 MB loaded and 231 stored a frame
   against 251 and 241 on the Mac (b186), 30.0 fps against 29.8 on the Air under the hold. b187 (62j's leads): shared storage left alone
   (`core/rt.h` tex_shared). manosaba: `DM_NVN_TBDR=0` changes no store, GPU time, picture or memory (b194): left on. Left: 228's set on the Air.
-- 222 · b77 · the host frame step's trials (`nvn_fstep.h`, with `DM_FRAME_STEP=vsync`): after 5 s a trial of k - 1; `DM_FSTEP_OPT=0` turns them off.
 - 223 · not taken · the frame step in ticks of 120 Hz: on the phone it settled at ~24 fps and the game ran 7.8 % fast.
 - 224 · not taken · the GPU one frame behind the game (LASRecomp dc1d28f, MIT): on the phone 44 fps against 47.5, and not safe for Tears of the
   Kingdom. `DM_NVN_GPUWATCH` now also compares the vertex and index ranges draws read in place.
@@ -829,10 +823,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   `widen_rw.h` `wrw_block_r`; chain 36a510fd7866): iPhone Air, Great Sky Island standing, widened 27.3 fps against 28.3 unwidened; b176 the
   setting "Wide screen (next launch)" (`ios/Settings.bundle/Root.plist` `dm.widen`, and the in-game panel; the user, 2026-11-09: a setting,
   off unless chosen); b177 the edge push per axis (`EmitterContext.EmitWidenPushAxis`, `widen_push_y`; chain 1f985598396c). Left: the Duo.
-- 321 · part (b178, b195) · the frame step's rules S2Arm measured on an iPhone (written anew in `gfx/nvn/nvn_fstep.h`), for when
-  `DM_FRAME_STEP=vsync` becomes the iOS default: the window (step up only when more than 24 of the last 120 frames were shown late), the probes
-  back to 60, the cost as the critical path from the frame's first submit to its GPU end (`nvn_fstep_cost`; Great Sky Island on the Mac: 0.61-0.70
-  vsyncs against the GPU's 0.46-0.55); `DM_FSTEP_RULES=0` off. iPhone Air, the first two on and off: 30 fps throughout. Left: the phone with the path.
 - 322 · part (b180) · the translator's warnings (317c, b179): 324 of Tears of the Kingdom's compute shaders decoded through 24 zero words;
   vertex shader 588e242a52f5f7aa's stores with no storage buffer; manosaba's pixel shaders a1fe71290083482a and 45eb69b3b99c6600 reading a
   multisample texture at PIXLD.MY_INDEX, left out. `DM_NVN_KEY_WATCH` found none of the three drawn. Left: each changed when a run draws with it.
@@ -847,6 +837,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196, b197) · Tears of the Kingdom's support removed (the user, 2026-11-24: the repository is manosaba's alone, on iOS and
-  Android): `games/totk`, `engines/bnsh`, their tests and documents (b196; the tag `totk-last` is the last commit with it); the command
-  channel's game commands, the frame-sync hook, sead's heap diagnostics, MetalFX for a game's own upscale pass (b197). Left: plan.md.
+- 328 · part (b196-b198) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
+  `games/totk`, `engines/bnsh`, the game commands and frame-sync hook, sead's heap diagnostics, MetalFX for a game's own upscale pass, the
+  host's frame step and the frame-rate trials, with their tests and documents. Left: plan.md.

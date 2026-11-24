@@ -15,8 +15,6 @@
 #include "../tex/nvn_fmt_mtl.h"
 #include "nvn_mtl.h"
 #include "nvn_pace.h"
-#include "nvn_fstep.h"
-#include "nvn_fptrial.h"
 #include "../../host/front.h"
 #include "../../host/game.h"
 #include "nvn_dirty.h"
