@@ -41,8 +41,8 @@ directory) is always required; `DM_TEMP` defaults to `$DM_ROOT/run/platform/temp
 ## Files
 
 The sources are in directories by role: `hle/` the system services, `runtime/` loading, threads, the host stack and crashes, `front/` the
-Mac front end and its input, `media/` the movie decoders, `diag/` diagnostics, `game/` what changes the game (hooks, mods, patches, cheats,
-the wide picture) and `cloud/` the save sync. The headers stay in `host/`, which every source finds through `-I.`. The Android host
+Mac front end and its input, `media/` the movie decoders, `diag/` diagnostics, `game/` the game's side (its profile's code, its language, the app's name) and
+`cloud/` the save sync. The headers stay in `host/`, which every source finds through `-I.`. The Android host
 (`android/`, plan item 301) builds the same sources but the Apple-only ones; what differs by operating system goes through `plat.h`,
 `slots.h`, `uc.h`, `table.h` and `runtime/asm.h`. Android has its own front ends (`front_headless.c` under adb, `app_android.c` and
 `front_android.c` in the app), its movie backend on the NDK's media API (`movie_android.c`) and its APK writer (`android/tools/apk.py`);
@@ -100,7 +100,6 @@ the wide picture) and `cloud/` the save sync. The headers stay in `host/`, which
 | `DM_WINDOW=1`, `DM_AUDIO=1` | Open a window; play sound (`DM_AUDIO_MUTE=1`: the sound card is opened and fed, silence goes out) |
 | `DM_KEYS` | Scripted input, e.g. `A@10+0.2` (press A at 10 s for 0.2 s), `T0.5:0.5@15+0.1` (touch at normalized x, y), `A@f3600+12` (at presented frame 3600 for 12 frames: does not drift when the machine is busy), left stick `LSL` / `LSR` / `LSU` / `LSD`, right stick `RSL` / `RSR` / `RSU` / `RSD` (a camera turned by a script) |
 | `DM_CMD=<file>` | Live command channel: lines appended to the file run while the game runs (`key A 200`, `down ZR` / `up ZR`, `wait <frames>`, `sleep <ms>`, `shot <png>`, `passdump <frames>`, `threads`, `memsnap <path>`, `hlecount`, `heaps`, `heap <addr>`, `quit`; `#` comments); a line runs once its newline is written. See `front/cmdchan.c` |
-| `DM_ASPECT=<w>:<h>`, `<w>x<h>`, a ratio (1 to 4) or `window` | Mac, Tears of the Kingdom with the option `aspect`: start with the wide picture on at that ratio (`window`: the window's shape, followed); unset, View → Wide Picture (⌘4) switches 21:9. The cameras' ratio is widened and the picture stretched over a window of that shape; the HUD is stretched with it (`game/aspect.c`, `games/totk/frame_step.c`, plan item 154) |
 | `DM_FACE_BUTTONS=position` | Controllers other than Nintendo's: face buttons by position (right A, bottom B, top X, left Y) instead of by the system's letters (`gamepad_map.h`, plan item 149) |
 | `DM_PAD_LOG=1` | Log each haptics engine's starts and stops (`front/gamepad.m`, plan item 67c) |
 | `DM_PAD_MOTION_LOG=1` | Log a controller's motion as GameController reports it, twice a second (gravity, user acceleration, rotation): for measuring its axes before they feed the six-axis sensor (plan item 67d) |

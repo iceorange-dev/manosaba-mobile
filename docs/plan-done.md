@@ -170,9 +170,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   `DM_FACE_BUTTONS=position`; unset as before (the user plays with an Xbox controller by its letters).
 - 153 · b61 · frame latency 2 at 30 Hz (lfkdsk/switch-appletv-port-skill references/05-perf.md §5.3, MIT: present-to-present standard
   deviation 0.603 → 0.301 ms, for 33 ms more latency): `DM_PRESENT_LATENCY=auto`. Left: the default waits for a device check.
-- 154 · b61 · the ultrawide aspect patch on the Mac (MacNativeGames `aspect_patch.h` at 1.4.3, MIT, written anew): option `aspect`
-  (`games/totk/rules.py`) multiplies the cameras' ratio by a factor; `host/game/aspect.c`: `DM_ASPECT=<w>:<h>` or `window`, View → Wide
-  Picture (⌘4) switches 21:9.
 - 155 · b49 · the present viewport rounded before it is centred (Touchable 5cab3ac, MIT).
 - 156 · b49 · dropped and slow frames judged against each frame's hold (after nxnative e7a84c7, MIT).
 - 157 · b49 · the oe notification event set and cleared under the queue lock (after nxnative ee51071, MIT).
@@ -512,8 +509,8 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196-b207) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
+- 328 · part (b196-b208) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
   `games/totk`, `engines/bnsh`, the hooks only it implemented with what they drove (the frame step, uncapped pacing, ProMotion's 120 Hz, the
   movies' hold), sead's heaps, eight profile fields, mods, cheats, pchtxt, the on-screen touch pad, nn::nfp and nn::codec, VP8 / VP9 movies
   with libvpx (329; the game's clips are H.264 and AAC in MP4), the virtual cores, the translation thread, the
-  RomFS overlay and the RomFS parts, the rewriter's code options, code caves and host page. Left: plan.md.
+  RomFS overlay and the RomFS parts, the rewriter's code options, code caves and host page, the Mac's wide picture. Left: plan.md.

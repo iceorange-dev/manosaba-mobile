@@ -82,21 +82,11 @@ int present_encode(id<MTLCommandBuffer> cb, id<MTLTexture> src0, id<MTLTexture> 
     [en endEncoding];
     return 1;
 }
-// The wide picture (plan item 154, host/game/aspect.c): the game widened its cameras and the front end shaped the target to the wide ratio, so the
-// picture, which holds the wider view squeezed into the game's canvas, is stretched over the whole target. Any thread (the front end's)
-static _Atomic int g_present_stretch;
-void mtl_present_stretch(int on) {
-    int v = on != 0; if (atomic_exchange(&g_present_stretch, v) != v) MLOG("present: the game picture %s", v ? "stretched over the target (the wide picture)" : "at its own aspect ratio");
-}
 // Viewport of the game picture (cw x ch) on a dw x dh target: its aspect ratio kept and centered; a ratio difference under 1% fills the target.
-// With the wide picture on (mtl_present_stretch) the whole target.
 // The size is rounded (and held to the target) before it is centred (plan item 155, after Touchable 5cab3ac, MIT): floor((dh - ch * s) / 2) with
 // ch * s a hair over dh (contracted to a fused multiply-add, or rounded so) gave an origin of -1 and a picture one pixel off the target. Unit test
 // gfx/tests/t_present_vp.m
 MTLViewport present_vp(double dw, double dh, double cw, double ch) {
-#ifndef DM_TEST_STRETCH_IGNORED   // negative control of t_present_vp only: the aspect ratio kept with the wide picture on
-    if (atomic_load(&g_present_stretch)) return (MTLViewport){0, 0, dw, dh, 0, 1};
-#endif
     double s = fmin(dw / cw, dh / ch);
     if (fabs((dw / dh) / (cw / ch) - 1) < 0.01) return (MTLViewport){0, 0, dw, dh, 0, 1};
 #ifndef DM_TEST_PRESENT_VP_OLD   // negative control of t_present_vp only: centred before rounding, as before

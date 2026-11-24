@@ -19,7 +19,6 @@ CFLAGS += -DDM_REWRITER_STAMP=0x$(REWRITER_STAMP)ull
 # front end and input, media/, diag/, game/ what changes the game, cloud/); the hle/hle_*.c service files are taken by wildcard; the headers stay here
 SRC = \
 	front/app_mac.m \
-	game/aspect.c \
 	cloud/cloud.m \
 	cloud/cloudsync.c \
 	front/cmdchan.c \

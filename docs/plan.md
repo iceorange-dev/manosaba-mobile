@@ -8,12 +8,12 @@ A new item takes the next number (332). How these two files are kept: [DEVELOPME
 
 The repository is manosaba's alone, on iOS and Android, since 2026-11-24 (the tag `totk-last`: the last commit with the other game). Each
 part below goes with its tests, its switches' rows and its records, after a manosaba run before and after it. Nothing removed since that day
-has run on a phone yet: an iPhone and an Android run are owed, and come before the part that changes what the phones draw (the wide
-picture). The parts that went first were off for manosaba on every platform, by its profile or a switch; in the iOS Simulator the app
+has run on a phone yet: an iPhone and an Android run are owed, and come before the part that changes what the phones draw (the
+widening). The parts that went first were off for manosaba on every platform, by its profile or a switch; in the iOS Simulator the app
 starts and runs (`ios/run.sh sim-run`: the launch path, not the pictures).
 
-- 328 · shared code only that game reached, by its gate: the wide picture and the widening (the settings' "Wide screen" switch goes with
-  them; it is offered to manosaba's players today, so a phone run comes first).
+- 328 · shared code only that game reached, by its gate: the widening (320: `DM_WIDEN`, the settings' "Wide screen" switch; it is offered
+  to manosaba's players today and was never looked at on this game, so the user decides and a phone run comes first).
 - 329 · takeovers the game's modules bind but no run has used (audren, 4 of its 12 names; motion, friends, net, swkbd) and the lists it has
   none of (`fout.tsv`, `border_msl.txt`, `lodbias_msl.txt`): kept until a longer run and a phone show them unused.
 - 330 · the documents: DEVELOPMENT.md and the READMEs' tables after 328; the open items below that came from the other game's work (271,

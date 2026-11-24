@@ -166,7 +166,6 @@ extern _Atomic uint64_t g_present_stall_ns;          // unit tests: an extra pau
 extern CAMetalLayer *g_present_layer_resident;
 void present_pipeline(MTLPixelFormat format); id<MTLTexture> present_src(id<MTLTexture> src); MTLViewport present_vp(double dw, double dh, double cw, double ch);
 int present_encode(id<MTLCommandBuffer> cb, id<MTLTexture> src, id<MTLTexture> dst, const int crop[4]);
-void mtl_present_stretch(int on);                    // the wide picture (plan item 154)
 // The presentation layer (mtl/present.m): screenshots, MetalFX upscaling of the presented picture, the present queue, the display link
 void present_init(void);                             // with the device (mtl_init): the presents' allocators, command buffers, argument table and UV buffers; DM_PRESENT_LINK, DM_PRESENT_LATENCY
 uint64_t present_alloc_bytes(void);                  // its command allocators' memory (Metal 4; 0 on Metal 3)

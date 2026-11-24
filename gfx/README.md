@@ -107,7 +107,7 @@ Binding conventions used by the translation:
 | `nvn/hle/nops.inc` | Commands with nothing to do here (counted), depth bounds, the no-op list (`g_nops`) |
 | `nvn/hle/window.inc` | Windows: building them, their crop and present interval, acquiring their images |
 | `nvn/hle/timing.inc` | Timing instrumentation: `DM_NVN_TSV`, the fps / GPU line, thermal attribution, the summaries every 300 frames |
-| `nvn/hle/pacing.inc` | Frame pacing and `nvnQueuePresentTexture`: dropped frames, the real-time thread's declaration, the present rate, frame-rate trials |
+| `nvn/hle/pacing.inc` | Frame pacing and `nvnQueuePresentTexture`: dropped frames, the real-time thread's declaration, the present rate |
 | `nvn/nvn_mtl.m`, `nvn/nvn_mtl.h` | Replay layer: the Metal device, queues, residency and deferred releases, then the `.inc` parts below up to `stats.inc`, included in this order (one translation unit, plan item 261); the `.m` files among them are translation units of their own (plan item 264) |
 | `nvn/mtl/mtl.h` | The Metal backend's private header: its includes, the Metal 4 / Metal 3 macros, and what its translation units share (plan item 264) |
 | `nvn/mtl/pools.inc` | Memory pools: the pool table, GPU addresses of guest memory and the buffers behind them |
