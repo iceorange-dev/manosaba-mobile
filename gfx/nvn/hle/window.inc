@@ -59,7 +59,6 @@ static uint64_t g_acq_wait_ns, g_pq_wait_ns;   // Accumulated display-link wait 
 uint64_t dm_nvn_frame_count(void) { return g_frame; }
 extern uint64_t g_t0_ns;   // Host process start point (main.c; same base as the UIMSG timestamps)
 static int g_display_mode;   // present_cfg (tentative definition: the variable is defined with the present rate further down)
-static int g_uncapped;       // present_cfg: our own clock paces the game (nvn_uncapped_hz), not the display link
 static int g_hz;             // present_cfg: the present rate (tentative definition, as g_display_mode)
 // The frame-rate hold (plan item 130): host/hle/hle_oe.c holds the game at a rate while it extends the user inactivity time (Tears of the Kingdom's
 // pre-rendered movies at 30 fps); every pacing interval goes through nvn_hold_interval (gfx/nvn/nvn_pace.h). 0 = no hold
@@ -70,7 +69,6 @@ void nvn_fps_hold(int fps) {
     if (old != fps) { if (fps) LOG("[nvn] frame rate held at %d fps (the game extends the user inactivity time)", fps); else LOG("[nvn] frame rate hold released"); }
 }
 int mtl_fps_target(void);   // nvn_mtl.m: the player's frame rate target (DM_FPS, the iOS setting, 135's thermal hold)
-int dm_game_realtime_step(void);   // (its weak default is in pacing.inc)
 static int win_interval(const win_t *o) {
     return nvn_hold_interval(g_display_mode ? 1 : o->interval, g_hz, nvn_pace_hold(atomic_load(&g_fps_hold), mtl_fps_target())); }   // (plan item 135b)
 NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsync *s, int *idx) {
@@ -85,7 +83,7 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
         static uint64_t rt_period; uint64_t period = present_period(o), rtp = rt_old() ? period : rt_cap_period(o);
         if (rtp && rt_period != rtp) { rt_period = rtp; set_time_constraint(rtp); }
         rt_comp_tick(rtp);
-        if (mtl_link_active() && !g_uncapped) { void mtl_link_set_interval(int n); mtl_link_set_interval(win_interval(o));   // game interval mode: as many ticks as the interval (it waited one: 60 fps at interval 2, the game ran twice as fast)
+        if (mtl_link_active()) { void mtl_link_set_interval(int n); mtl_link_set_interval(win_interval(o));   // game interval mode: as many ticks as the interval (it waited one: 60 fps at interval 2, the game ran twice as fast)
             if (!mtl_link_wait_tick(period ? 2 * period : 33333333ull) && wait) sleep_until_ns(at); }   // DM_PRESENT_LINK: pacing fully follows the display link (wait for the next display-link tick when running fast, go immediately when behind); our own 60 Hz clock is only the fallback when no display-link tick arrives
         else if (wait) sleep_until_ns(at);
     } else {   // DM_DETCLOCK_PACE=1 (used by the screenshot gate): while the guest clock advances per frame, each frame's wall clock is no shorter than one step -- frame count and in-game time are deterministic, and the background loading thread has at least one step of wall clock available per frame;

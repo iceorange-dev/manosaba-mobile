@@ -141,7 +141,7 @@ app's signature: yes / no` (the entitlements read back from the executable's own
   has the same button. A session that ends in the foreground without an orderly exit (killed for memory, a crash, a hang the system ended)
   is noticed at the next launch (`Documents/boot.running`, `host/rundiag.h`): a red line says so and its log is kept as
   `boot.interrupted.txt` until another such session replaces it.
-- **Graphics settings** (Settings app → this app → Graphics): frame rate 60 / 30 fps (`DM_FPS`; the display link and ProMotion follow), render
+- **Graphics settings** (Settings app → this app → Graphics): frame rate 60 / 30 fps (`DM_FPS`; the display link follows), render
   resolution (`DM_RENDER_HEIGHT`, applied by `games/manosaba/graphics.c`; read at startup) and MetalFX
   spatial upscaling of the presented picture (`DM_UPSCALE=metalfx`, `gfx/nvn/mtl/present.inc` `fx_apply`). Frame rate and MetalFX follow a change on
   returning to the game; a variable set at launch wins until the setting is changed. iOS has no V-Sync switch: `CAMetalLayer.displaySyncEnabled`

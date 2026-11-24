@@ -254,7 +254,6 @@ All are environment variables. The Mac host fills `DM_NVN_SHMAP` and `DM_MSL_DIR
 | `DM_NVN_RT_CENSUS=1` | At each memory line: the render targets of recorded commands by pool (count, Metal bytes, guest ranges), and what became of the depth and stencil ones (never attached; attached and always cleared first; loaded by a pass; bound as a texture) |
 | `DM_NVN_FUSE_CHECK=1` | Same-frame check of pass merging |
 | `DM_TEST_NO_BC=1` | Take the "GPU without BC textures" decompression path on any machine |
-| `DM_UNCAPPED=0`, `DM_UNCAPPED_HZ=<30..120>` or `display` | For a game whose step follows the measured frame time (Tears of the Kingdom's rules product): by default the game does not wait for the display, our clock paces it at up to 120 fps and the display shows the newest finished frame; `=0` paces by the display at the game's interval as before |
 | `DM_TEST_WORK_MS=<ms>` | Each frame's first submission waits until that long after the previous present (a game whose work takes that long; pacing tests) |
 | `DM_FPS=30` | Present at 30 fps (default 60): the display link ticks at 30 Hz while a frame is a whole number of its ticks and at the present rate while one is not (a game's interval 3 at 60 Hz, 20 fps: three 60 Hz ticks; plan item 324) |
 | `DM_PRESENT_HZ=0` | No frame limit (profiling only: some game logic counts frames) |

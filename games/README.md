@@ -79,7 +79,7 @@ Sources in the game directory are compiled into the host. They may implement the
 
 - `dm_game_boot()` — on the guest main thread, after the modules' constructors, right before `nnMain`
 - `dm_game_mount_save(dir)` — before the save directory is mounted
-- `dm_game_present()` — every `nvnQueuePresentTexture`, on the game's thread (once per game frame)
+- `dm_game_native_screen(w, h)` — the setting "Native" is on and the window is now on a screen of that size
 - `dm_game_save_precommit(workdir)` — during `nn::fs::Commit`, before the working directory is swapped in; side files written into `workdir`
   are committed atomically with the game's own files (`dm_fs_save_poison(err)` refuses the commit)
 

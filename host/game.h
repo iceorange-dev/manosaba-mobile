@@ -50,10 +50,6 @@ void dm_game_mount_save(const char *dir);     // before the save directory dir (
 // nn::fs::Commit of the transactional save, before the working directory is swapped in: side files the hook writes into workdir are committed
 // atomically with the game's own files. Called with the file system lock held: write with host file calls, not through the guest's nn::fs.
 void dm_game_save_precommit(const char *workdir);
-// Every nvnQueuePresentTexture, on the game's thread before the present (weak default in gfx/nvn/hle_nvn.c, which the graphics tests link without
-// the host): once per game frame
-void dm_game_present(void);
-int dm_game_realtime_step(void);            // 1: the game's step follows the measured frame time now (uncapped pacing may pace it, gfx/nvn/nvn_pace.h)
 // nn::oe::SetUserInactivityDetectionTimeExtended(on) from the guest return address ra (host/hle/hle_oe.c): the frame rate to hold until the next call,
 // 0 = none (weak default: 0). Tears of the Kingdom holds its pre-rendered movies at 30 (games/totk/movie_fps.c, plan item 130)
 int dm_game_inactivity_fps(int on, uint64_t ra);

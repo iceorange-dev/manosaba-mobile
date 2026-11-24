@@ -45,8 +45,8 @@ static void sleep_until_ns(uint64_t dl) {   // absolute time on the monotonic cl
     mach_wait_until(mach_absolute_time() + (dl - now) * tb.denom / tb.numer);
 }
 // Present is fixed at 60 Hz: the adaptive mechanism stepped down at frame 60 in 24/24 real-device logs and never came back up, so for this phase 60 fps is the hard floor.
-// DM_PRESENT_HZ=30..120 sets the rate one present interval stands for (the display link ticks at it): only for a game whose step follows the measured
-// frame time (Tears of the Kingdom with its real-time frame step, games/totk/frame_step.c); a game that steps per frame runs at rate / 60 speed.
+// DM_PRESENT_HZ=30..120 sets the rate one present interval stands for (the display link ticks at it): a game that steps per frame (manosaba) runs
+// at rate / 60 speed.
 // DM_PRESENT_HZ=0 (uncapped frame rate) serves only as an explicit performance profiling switch: some of the game's UI logic counts frames (with the same save, uncapped gives
 // 4181 SaveIndicatorPanel entries and capped at 60 fps gives 0, which matches the ground truth), so uncapped is a semantically wrong way to run and must not be used as a criterion / cross-check / default. Unit tests set it directly with nvn_present_config
 static int g_hz = -1, g_display_mode;
@@ -58,10 +58,6 @@ static void present_cfg(const win_t *o) {
     const char *e = getenv("DM_PRESENT_HZ"); g_hz = e ? atoi(e) : 60;
     if (g_hz > 0 && (g_hz < 30 || g_hz > 120)) { LOG("[nvn] [red] DM_PRESENT_HZ=%d outside 30..120: 60", g_hz); g_hz = 60; }
     if (g_hz > 0) { void mtl_link_set_rate(int hz); mtl_link_set_rate(g_hz); }
-    { int uc = nvn_uncapped_hz(dm_game_realtime_step(), e, getenv("DM_UNCAPPED"), getenv("DM_UNCAPPED_HZ"), scr);
-      if (uc) { g_uncapped = 1; g_hz = uc; void mtl_link_set_rate(int hz); mtl_link_set_rate(scr > 0 ? scr : 60);
-          LOG("[nvn] uncapped pacing (DM_UNCAPPED=0 turns it off): the game does not wait for the display, our clock paces it at up to %d fps (DM_UNCAPPED_HZ); "
-              "the display (%d Hz) shows the newest finished frame at each refresh", uc, scr); } }
     if (!g_hz) LOG("[nvn] [warning] DM_PRESENT_HZ=0: uncapped frame rate, frame pacing differs from a real device and UI logic may diverge (for performance profiling only; not valid for criteria / cross-checks)");
     // Cut (intentional deviation from the original game's behavior): with DM_PRESENT_INTERVAL=display the present interval set by the game is not followed and one frame is presented per display-link tick,
     // with a fixed hard floor of 60 fps; the logic stays at 25 ticks, and the client's frame-counted UI logic is unaffected -
@@ -73,24 +69,10 @@ static void present_cfg(const win_t *o) {
     LOG("[nvn] present rate %d Hz, interval mode %s (game-set present interval %d; %s)", g_hz, g_display_mode ? "display (one frame per tick, cut)" : "game (original semantics)", o->interval,
         scr > 0 ? (dm_game.present_game_interval && !m ? "window, game.json present_interval game" : "window") : "no window");
     // Which queued frame the display link shows (plan item 140): the newest, or every frame in order for a game that steps once per frame (game.json
-    // present_consume "fifo": manosaba). Uncapped pacing shows the newest by design. DM_PRESENT_CONSUME=newest|fifo overrides
+    // present_consume "fifo": manosaba). DM_PRESENT_CONSUME=newest|fifo overrides
     { const char *c = getenv("DM_PRESENT_CONSUME"); int fifo = c ? !strcmp(c, "fifo") : dm_game.present_fifo;
-      if (g_uncapped) fifo = 0;
       void mtl_link_set_fifo(int on); mtl_link_set_fifo(fifo);
       LOG("[nvn] the display link shows %s (%s)", fifo ? "every frame in order, each for its present period" : "the newest frame", c ? "DM_PRESENT_CONSUME" : "game.json present_consume"); }
-}
-// The rate the screen runs at now (the iOS front end's display link, every tick; plan item 172): a game stepping by the measured time follows it
-// between 60 and 120 on a ProMotion screen (nvn_promotion_hz), and presents at 120 while the player's target holds the rate below 60 (plan item
-// 324: the front end reports then too, the rate being the 30 we asked for). Any thread
-static _Atomic int g_pro_last;
-void nvn_display_rate_now(int now_hz) {
-    static int disp = -1; if (disp < 0) disp = mtl_display_hz();
-    if (g_hz < 0 || g_uncapped) return;   // (before the first present the configuration is not made yet)
-    int held = mtl_fps_target() < 60, hz = nvn_promotion_hz(dm_game_realtime_step(), getenv("DM_PRESENT_HZ"), getenv("DM_PROMOTION"), disp, now_hz, held);
-    if (!hz || hz == atomic_load(&g_pro_last)) return;
-    atomic_store(&g_pro_last, hz); g_hz = hz; void mtl_link_set_rate(int hz); mtl_link_set_rate(hz);
-    if (held) LOG("[nvn] ProMotion: the frame rate held at %d fps, presents at %d (a frame takes the hold's interval; plan item 324)", mtl_fps_target(), hz);
-    else LOG("[nvn] ProMotion: the screen runs at %d Hz, presents at %d (DM_PROMOTION=0 keeps 60)", now_hz, hz);
 }
 static uint64_t present_period(const win_t *o) {
     present_cfg(o);
@@ -103,12 +85,10 @@ static uint64_t rt_cap_period(const win_t *o) {   // the period the time-constra
 }
 int (*g_nvn_loadscreen_up)(void);   // optional game hook: is a loading screen up right now (waits for the pipeline warm-up there; marks long frames hidden behind it)
 __attribute__((weak)) void dm_movie_tick(void) {}   // host hle_movie.c: hands paced movie frames over, one per game frame; none in the graphics unit tests
-__attribute__((weak)) void dm_game_present(void) {}   // game hook (host/game.h): every present, on the game's thread; none in the graphics unit tests
 __attribute__((weak)) void dm_sdk_test_present(uint64_t frame) { (void)frame; }   // host/diag/sdktest.c (DM_SDK_TEST); none in the graphics unit tests
-__attribute__((weak)) int dm_game_realtime_step(void) { return 0; }   // game hook (host/game.h): the game's step follows the measured frame time
 NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
     uint64_t tr = trace_now();
-    dm_game_present(); dm_sdk_test_present(g_frame);
+    dm_sdk_test_present(g_frame);
     dm_movie_tick();   // before the core is given away: it signals the game's movie events (guest code)
     NVN_BLOCKING();
     (void)q; win_t *o = (win_t *)w; o->presents++;

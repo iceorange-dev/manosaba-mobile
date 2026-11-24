@@ -98,8 +98,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 51 · b13 · lifecycle and swipe-away tests (upstream `ios/tools/lifecycle.sh`, `logred.sh`). The home button and the app
   switcher were for the phone (70).
 - 52 · b14 · scene render size on 1.4.3, `DM_RENDER_RES=<w>x<h>` (after MacNativeGames PR #19, MIT).
-- 53 · b15, b190 · frame pacing between 30 and 60 fps (after MacNativeGames' TOTK_UNCAPPED, MIT; `DM_UNCAPPED=0` off). In a window in b190 (71b);
-  the 30 fps constants in play are 71c.
 - 54 · b16 · user mod folders, `DM_MODS=<dir>` (after SkyRecomp's `runtime/mods.c`, MIT); on iOS `Documents/mods`.
 - 55 · not taken (b17) · moving the AudioUnit open (tomodachi-native d7f52e1 moved it after a 40 s stall): 22-26 ms in the games here.
 - 56 · not taken (b18) · cold uploaded textures (justr4mzi's mush8 fork aafef22, ideas only): about 3 % of Tears of the Kingdom's Metal memory.
@@ -341,8 +339,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   Left: the game's text in Tears of the Kingdom (62).
 - 171 · b53 · the touch controls below the iPadOS window controls and controllers (Touchable, MIT, written anew). Left (the user): an iPad
   window, a controller.
-- 172 · b53 · ProMotion 120 Hz for a game that steps by real time (Touchable's SS_DISPLAY_HZ=120, MIT). Left (the user): a ProMotion iPhone's
-  frame rate line in Tears of the Kingdom.
 - 173 · b53 · install checks and a Documents backup in `run.sh install` (Touchable's launcher install, MIT, written anew).
 - 174 · b53 · the iOS shader directory checked complete before packing (acnh-mobile 67afe52 check_invariance, MIT).
 - 175 · b53 · the game data verified once, then a marker (super-mario-odyssey-ios ea19678, MIT; DM_ROMFS_RECHECK=1 walks again).
@@ -837,6 +833,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196-b198) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
+- 328 · part (b196-b199) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
   `games/totk`, `engines/bnsh`, the game commands and frame-sync hook, sead's heap diagnostics, MetalFX for a game's own upscale pass, the
-  host's frame step and the frame-rate trials, with their tests and documents. Left: plan.md.
+  host's frame step, the frame-rate trials, uncapped pacing, ProMotion's 120 Hz, with their tests and documents. Left: plan.md.

@@ -54,47 +54,6 @@ int main(void) {
         printf("%-52s expected wait %8.3f ms → got %8.3f ms %s\n", c[i].why, c[i].want / 1e6, got / 1e6, ok ? "✓" : "✗");
         fail += !ok;
     }
-    // Uncapped pacing (nvn_uncapped_hz, plan item 53): when our own clock paces the game, and at what rate
-    struct { int rt; const char *phz, *unc, *cap; int disp, want; const char *why; } u[] = {
-        {1, NULL, NULL, NULL, 0, 120, "a real-time step, no window: uncapped at 120"},
-        {1, NULL, NULL, NULL, 60, 120, "... on a 60 Hz display: 120 (the display shows the newest frame)"},
-        {1, NULL, NULL, NULL, 100, 120, "... on a 100 Hz display: 120"},
-        {1, NULL, NULL, NULL, 120, 0, "... on a 120 Hz display: the usual pacing (nothing to gain)"},
-        {0, NULL, NULL, NULL, 60, 0, "a step per frame (30 fps product, manosaba): the usual pacing"},
-        {1, "90", NULL, NULL, 60, 0, "DM_PRESENT_HZ asked for: the usual pacing at that rate"},
-        {1, NULL, "0", NULL, 60, 0, "DM_UNCAPPED=0: off"},
-        {1, NULL, "1", NULL, 60, 120, "DM_UNCAPPED=1: on"},
-        {1, NULL, NULL, "display", 60, 60, "DM_UNCAPPED_HZ=display on 60 Hz: 60"},
-        {1, NULL, NULL, "display", 0, 60, "DM_UNCAPPED_HZ=display without one: 60"},
-        {1, NULL, NULL, "90", 60, 90, "DM_UNCAPPED_HZ=90"},
-        {1, NULL, NULL, "10", 60, 30, "DM_UNCAPPED_HZ=10: 30 at least"},
-        {1, NULL, NULL, "240", 60, 120, "DM_UNCAPPED_HZ=240: 120 at most (the step's 1/120 s floor)"},
-    };
-    for (int i = 0; i < (int)(sizeof u / sizeof *u); i++) {
-        int got = nvn_uncapped_hz(u[i].rt, u[i].phz, u[i].unc, u[i].cap, u[i].disp), ok = got == u[i].want; n++;
-        printf("%-72s expected %3d → got %3d %s\n", u[i].why, u[i].want, got, ok ? "✓" : "✗"); fail += !ok;
-    }
-    // ProMotion (nvn_promotion_hz, plan item 172): 120 while a 120 Hz screen runs at 120, for a game stepping by the measured time only; a game
-    // stepping per frame (-DDM_TEST_PROMOTION_ANY_STEP) at 120 fails 2. While the player's target holds the rate below 60 (plan item 324) 120
-    // whatever the screen runs at; the screen's rate then too (-DDM_TEST_PROMOTION_HELD_BY_SCREEN) fails 2
-    struct { int rt; const char *phz, *pro; int disp, now, held, want; const char *why; } pm[] = {
-        {1, NULL, NULL, 120, 120, 0, 120, "a real-time step on a 120 Hz screen running at 120: 120"},
-        {1, NULL, NULL, 120, 60, 0, 60, "... the screen at 60 (iOS limits it): 60"},
-        {0, NULL, NULL, 120, 120, 0, 0, "a step per frame (manosaba): left at 60"},
-        {1, NULL, NULL, 60, 60, 0, 0, "a 60 Hz screen: left alone"},
-        {1, "90", NULL, 120, 120, 0, 0, "DM_PRESENT_HZ asked for: left alone"},
-        {1, NULL, "0", 120, 120, 0, 0, "DM_PROMOTION=0: left alone"},
-        {1, NULL, NULL, 120, 30, 1, 120, "the target 30, the screen at the 30 we asked for: 120 (324: as where the hold began later)"},
-        {1, NULL, NULL, 120, 60, 1, 120, "the target 30, the screen at 60: 120"},
-        {1, NULL, NULL, 120, 120, 1, 120, "the target 30, the screen still at 120: 120"},
-        {0, NULL, NULL, 120, 30, 1, 0, "the target 30, a step per frame: left at 60"},
-        {1, NULL, NULL, 60, 30, 1, 0, "the target 30, a 60 Hz screen: left alone"},
-        {1, NULL, "0", 120, 30, 1, 0, "the target 30, DM_PROMOTION=0: left alone"},
-    };
-    for (int i = 0; i < (int)(sizeof pm / sizeof *pm); i++) {
-        int got = nvn_promotion_hz(pm[i].rt, pm[i].phz, pm[i].pro, pm[i].disp, pm[i].now, pm[i].held), ok = got == pm[i].want; n++;
-        printf("%-72s expected %3d → got %3d %s\n", pm[i].why, pm[i].want, got, ok ? "✓" : "✗"); fail += !ok;
-    }
     // Display-link frame latency (nvn_latency_setting / nvn_frame_latency, plan item 153): unset 1; a number wins at every rate; "auto" 2 at a
     // 30 Hz link only. "auto" taking 2 at every rate (-DDM_TEST_LATENCY_AUTO_ANY) fails 2
     struct { const char *env; int lhz, want; const char *why; } fl[] = {

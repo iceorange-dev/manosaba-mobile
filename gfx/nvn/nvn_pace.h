@@ -135,43 +135,6 @@ static inline int nvn_fps_policy(int user_fps, int low_power, int thermal, int h
     return (low_power || (hold_hot && thermal >= 2)) && user_fps > 30 ? 30 : user_fps;
 }
 
-// Uncapped pacing (plan item 53, after MacNativeGames' TOTK_UNCAPPED, ly05010419/MacNativeGames, MIT): for a game whose step follows the measured
-// frame time (the host's dm_game_realtime_step), the game does not wait for the display. Our own clock paces it at up to `cap` Hz (its present
-// interval × 1 / cap a frame) and the display link shows the newest finished frame at each refresh, so a scene slower than 60 fps shows at its own
-// rate instead of the next step down (30). Off with DM_UNCAPPED=0, with DM_PRESENT_HZ (a fixed rate asked for) and on a display of 120 Hz or more
-// (nothing to gain there). The cap: DM_UNCAPPED_HZ=30..120 or "display" (the display's rate, 60 without one); 120 at most, as the frame step counts a
-// frame as at least 1/120 s. Returns the clock rate in Hz, 0 for the usual pacing.
-// ProMotion (plan item 172, after Touchable's SS_DISPLAY_HZ=120, MIT): on a screen of 120 Hz or more a game whose step follows the measured frame time
-// presents at 120 while the screen runs at 120 (the front end asks it for 80-120 Hz and reports the rate it runs at: iOS lowers it in Low Power Mode),
-// at 60 otherwise; a game that steps per frame (manosaba) stays at 60, as it would run twice as fast. DM_PROMOTION=0 or DM_PRESENT_HZ (a fixed rate)
-// leave the rate alone. Returns the present rate for the screen's current rate now_hz, 0 to leave it as it is.
-// held (plan item 324): the player's frame rate target is below 60 (DM_FPS=30, the iOS setting, Low Power Mode or 135's thermal hold). The screen
-// then runs at 30 by our own request, which says nothing of the rate it could run at, and the front end used to report nothing: the present rate
-// stayed what it was, 120 where the hold began while the game ran and 60 where the game started under it. At 60 the game's own interval 3 is 20
-// fps and paces the frames (15 fps on the 30 Hz link); at 120 it is 40 fps, under the hold's 4, and frames of 35 ms show at 27 fps. 120 while
-// held, as where the hold begins later: a frame takes the hold's interval either way
-static inline int nvn_promotion_hz(int realtime_step, const char *present_hz, const char *promotion, int display_hz, int now_hz, int held) {
-    if (present_hz || (promotion && !strcmp(promotion, "0")) || display_hz < 120) return 0;
-#ifndef DM_TEST_PROMOTION_ANY_STEP   // negative control of t_pace only: a game stepping per frame at 120 too
-    if (!realtime_step) return 0;
-#endif
-#ifndef DM_TEST_PROMOTION_HELD_BY_SCREEN   // negative control of t_pace only: the screen's rate while held too
-    if (held) return 120;
-#else
-    (void)held;
-#endif
-    return now_hz >= 110 ? 120 : 60;
-}
-static inline int nvn_uncapped_hz(int realtime_step, const char *present_hz, const char *uncapped, const char *cap, int display_hz) {
-#ifdef DM_TEST_UNCAPPED_ANY_STEP   // negative control of t_pace only: a game stepping per frame paced uncapped too (it would run fast)
-    (void)realtime_step;
-    if (present_hz || (uncapped && !strcmp(uncapped, "0")) || display_hz >= 120) return 0;
-#else
-    if (!realtime_step || present_hz || (uncapped && !strcmp(uncapped, "0")) || display_hz >= 120) return 0;
-#endif
-    int v = !cap || !*cap ? 120 : !strcmp(cap, "display") ? (display_hz > 0 ? display_hz : 60) : atoi(cap);
-    return v < 30 ? 30 : v > 120 ? 120 : v;
-}
 // Display-link frame latency (plan item 153, after lfkdsk/switch-appletv-port-skill references/05-perf.md §5.3, MIT: with the link at 30 Hz,
 // preferredFrameLatency 2 halved the present-to-present standard deviation, 0.603 → 0.301 ms over 1,530 frames, and frames above 40 ms went 4 → 1,
 // for 33 ms more latency; at 60 Hz they keep 1, with no headroom to trade; a setting given always wins). DM_PRESENT_LATENCY=<n> fixes it; "auto"
