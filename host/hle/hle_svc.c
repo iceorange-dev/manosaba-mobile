@@ -147,13 +147,12 @@ static void mem_init(void) {
 // The guest address space reserved now (iOS main(), before UIKit and Metal take address space: plan item 62a); otherwise at the first svc
 void svc_reserve_early(void) { mem_init(); }
 
-// Application memory pool reported to the game: the 3285 MB a 4 GB Switch gives applications, + DM_APP_POOL_ADD_MB (default 512; on iOS the profile's
-// ios_pool_add_mb, Tears of the Kingdom 0, plan item 62a; may be negative).
+// Application memory pool reported to the game: the 3285 MB a 4 GB Switch gives applications, + DM_APP_POOL_ADD_MB (default 512; may be negative).
 // GetInfo TotalMemory reports it and SetHeapSize refuses a heap that does not fit beside the loaded images.
 #define APP_POOL 0xCD500000ull
 static uint64_t app_pool(void) {
     static uint64_t v;
-    if (!v) { const char *e = getenv("DM_APP_POOL_ADD_MB"); long add = e ? atol(e) : TARGET_OS_IPHONE ? dm_game.ios_pool_add_mb : 512; v = APP_POOL + ((uint64_t)add << 20);
+    if (!v) { const char *e = getenv("DM_APP_POOL_ADD_MB"); long add = e ? atol(e) : 512; v = APP_POOL + ((uint64_t)add << 20);
               if (e) LOG("DM_APP_POOL_ADD_MB: application pool %llu MB (Switch 3285 MB %+ld)", (unsigned long long)(v >> 20), add); }
     return v;
 }

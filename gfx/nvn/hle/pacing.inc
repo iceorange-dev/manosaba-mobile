@@ -63,11 +63,9 @@ static void present_cfg(const win_t *o) {
     // with a fixed hard floor of 60 fps; the logic stays at 25 ticks, and the client's frame-counted UI logic is unaffected -
     // with the same save and the same input, the UI message streams of the two modes match message by message. Proof (before character select): r9 game / display 60 ×3 / display 120 ×2, 6 groups in total, uicmp consistent
     // (the save indicator is exempted as a timing race), and the timing differences of key messages are within game mode's own noise band; proof after entering a run is still missing, pending action script coverage
-    // A game whose step is per frame (Tears of the Kingdom: its controller picks interval 2 or 3 and every frame advances 1/30 or 1/20 s) runs twice
-    // as fast in display mode: game.json present_interval "game" keeps the game's interval with a window too
-    const char *m = getenv("DM_PRESENT_INTERVAL"); g_display_mode = m ? !strcmp(m, "display") : scr > 0 && !dm_game.present_game_interval;
+    const char *m = getenv("DM_PRESENT_INTERVAL"); g_display_mode = m ? !strcmp(m, "display") : scr > 0;
     LOG("[nvn] present rate %d Hz, interval mode %s (game-set present interval %d; %s)", g_hz, g_display_mode ? "display (one frame per tick, cut)" : "game (original semantics)", o->interval,
-        scr > 0 ? (dm_game.present_game_interval && !m ? "window, game.json present_interval game" : "window") : "no window");
+        scr > 0 ? "window" : "no window");
     // Which queued frame the display link shows (plan item 140): the newest, or every frame in order for a game that steps once per frame (game.json
     // present_consume "fifo": manosaba). DM_PRESENT_CONSUME=newest|fifo overrides
     { const char *c = getenv("DM_PRESENT_CONSUME"); int fifo = c ? !strcmp(c, "fifo") : dm_game.present_fifo;
@@ -81,7 +79,7 @@ static uint64_t present_period(const win_t *o) {
 }
 static uint64_t rt_cap_period(const win_t *o) {   // the period the time-constraint threads declare: the cap's, without the game's own (late) interval (nvn_pace.h nvn_rt_period_ns)
     present_cfg(o);
-    return nvn_rt_period_ns(g_hz, nvn_hold_interval(1, g_hz, nvn_pace_hold(atomic_load(&g_fps_hold), mtl_fps_target())));
+    return nvn_rt_period_ns(g_hz, nvn_hold_interval(1, g_hz, nvn_pace_hold(mtl_fps_target())));
 }
 int (*g_nvn_loadscreen_up)(void);   // optional game hook: is a loading screen up right now (waits for the pipeline warm-up there; marks long frames hidden behind it)
 __attribute__((weak)) void dm_movie_tick(void) {}   // host hle_movie.c: hands paced movie frames over, one per game frame; none in the graphics unit tests
@@ -99,10 +97,6 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
     present_cfg(o);
     { static long sf = -1; static double ss; if (sf < 0) { const char *e = getenv("DM_TEST_PRESENT_STALL"); sf = 0; if (e) { sf = atol(e); const char *c = strchr(e, ':'); ss = c ? atof(c + 1) : 8; } }
       if (sf > 0 && g_frame == (uint64_t)sf) { LOG("DM_TEST_PRESENT_STALL: present held for %.1f s at frame %llu", ss, (unsigned long long)g_frame); usleep((useconds_t)(ss * 1e6)); } }
-    { static long ha = -1, hb; static int hf;   // DM_TEST_FPS_HOLD=<from>:<to>:<fps>: the frame-rate hold of plan item 130 between two frames, without a movie
-      if (ha < 0) { const char *e = getenv("DM_TEST_FPS_HOLD"); ha = 0; if (e && sscanf(e, "%ld:%ld:%d", &ha, &hb, &hf) != 3) ha = 0; }
-      if (ha > 0 && g_frame == (uint64_t)ha) nvn_fps_hold(hf);
-      if (ha > 0 && g_frame == (uint64_t)hb) nvn_fps_hold(0); }   // a freeze on purpose (host/runtime/crash.c's frames-stopped watch)
     gfx_enter();
     uint64_t t0 = now_ns();
     static struct { uint64_t id; uint8_t job, set; } ptk[16];   // what each of the last presents got: a ticket, or a present job (the statistics below ask by it)

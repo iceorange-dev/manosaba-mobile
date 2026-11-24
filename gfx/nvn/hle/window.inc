@@ -60,17 +60,9 @@ uint64_t dm_nvn_frame_count(void) { return g_frame; }
 extern uint64_t g_t0_ns;   // Host process start point (main.c; same base as the UIMSG timestamps)
 static int g_display_mode;   // present_cfg (tentative definition: the variable is defined with the present rate further down)
 static int g_hz;             // present_cfg: the present rate (tentative definition, as g_display_mode)
-// The frame-rate hold (plan item 130): host/hle/hle_oe.c holds the game at a rate while it extends the user inactivity time (Tears of the Kingdom's
-// pre-rendered movies at 30 fps); every pacing interval goes through nvn_hold_interval (gfx/nvn/nvn_pace.h). 0 = no hold
-static _Atomic int g_fps_hold;
-void nvn_fps_hold(int fps) {
-    if (fps < 0) fps = 0;
-    int old = atomic_exchange(&g_fps_hold, fps);
-    if (old != fps) { if (fps) LOG("[nvn] frame rate held at %d fps (the game extends the user inactivity time)", fps); else LOG("[nvn] frame rate hold released"); }
-}
 int mtl_fps_target(void);   // nvn_mtl.m: the player's frame rate target (DM_FPS, the iOS setting, 135's thermal hold)
 static int win_interval(const win_t *o) {
-    return nvn_hold_interval(g_display_mode ? 1 : o->interval, g_hz, nvn_pace_hold(atomic_load(&g_fps_hold), mtl_fps_target())); }   // (plan item 135b)
+    return nvn_hold_interval(g_display_mode ? 1 : o->interval, g_hz, nvn_pace_hold(mtl_fps_target())); }   // (plan item 135b)
 NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsync *s, int *idx) {
     NVN_BLOCKING();
     uint64_t tr = trace_now();

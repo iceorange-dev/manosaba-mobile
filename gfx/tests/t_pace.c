@@ -151,17 +151,16 @@ int main(void) {
         int got = nvn_fps_policy(fp[i].user, fp[i].lp, fp[i].th, fp[i].hold), ok = got == fp[i].want; n++;
         printf("%-72s expected %3d → got %3d %s\n", fp[i].why, fp[i].want, got, ok ? "✓" : "✗"); fail += !ok;
     }
-    // The pacing hold with the player's target (nvn_pace_hold, plan item 135b); the game's hold alone (-DDM_TEST_TARGET_NOT_HELD) fails 2
-    struct { int hold, target, hz, itv, want; const char *why; } ph[] = {
-        {0, 60, 60, 1, 1, "no hold, target 60, the game's interval 1: 1"},
-        {0, 30, 60, 1, 2, "target 30 (thermal hold), the game's interval 1 at 60 Hz: 2 (30 fps, none drawn to be dropped)"},
-        {0, 30, 120, 1, 4, "target 30 at 120 Hz: 4"},
-        {30, 60, 60, 1, 2, "a movie's hold 30, target 60: 2"},
-        {30, 30, 60, 3, 3, "hold and target 30, the game's own 3: 3 (a longer interval stays)"},
-        {0, 30, 60, 2, 2, "target 30, the game's interval 2 already: 2"},
+    // The pacing hold from the player's target (nvn_pace_hold, plan item 135b); no hold from it (-DDM_TEST_TARGET_NOT_HELD) fails 2
+    struct { int target, hz, itv, want; const char *why; } ph[] = {
+        {60, 60, 1, 1, "target 60, the game's interval 1: 1"},
+        {30, 60, 1, 2, "target 30 (thermal hold), the game's interval 1 at 60 Hz: 2 (30 fps, none drawn to be dropped)"},
+        {30, 120, 1, 4, "target 30 at 120 Hz: 4"},
+        {30, 60, 3, 3, "target 30, the game's own 3: 3 (a longer interval stays)"},
+        {30, 60, 2, 2, "target 30, the game's interval 2 already: 2"},
     };
     for (int i = 0; i < (int)(sizeof ph / sizeof *ph); i++) {
-        int got = nvn_hold_interval(ph[i].itv, ph[i].hz, nvn_pace_hold(ph[i].hold, ph[i].target)), ok = got == ph[i].want; n++;
+        int got = nvn_hold_interval(ph[i].itv, ph[i].hz, nvn_pace_hold(ph[i].target)), ok = got == ph[i].want; n++;
         printf("%-72s expected %3d → got %3d %s\n", ph[i].why, ph[i].want, got, ok ? "✓" : "✗"); fail += !ok;
     }
     // FIFO consumption (nvn_fifo_due, plan item 140, see fifo_run); one frame every tick whatever its period (-DDM_TEST_FIFO_NO_PERIOD) fails 2

@@ -99,7 +99,7 @@ static inline int nvn_fifo_due(nvn_pacer *p, uint64_t now, uint64_t period) {
     return 1;
 }
 
-// A frame-rate hold (plan item 130): while the host holds the game at hold_fps (hle_oe.c: Tears of the Kingdom's pre-rendered movies at 30),
+// A frame-rate hold: while the host holds the game at hold_fps (the player's target below 60, nvn_pace_hold),
 // a frame takes at least the present interval that gives that rate at the present rate hz, rounded up (never faster than the hold): 2 at 60 Hz,
 // 3 at 90, 4 at 120. A longer interval of the game's own stays. hold_fps 0 = no hold. Unit test tests/t_pace.c
 static inline int nvn_hold_interval(int itv, int hz, int hold_fps) {
@@ -110,16 +110,14 @@ static inline int nvn_hold_interval(int itv, int hz, int hold_fps) {
     return itv;
 }
 
-// The hold a frame is paced with: the lower of the game's hold (130: movies) and the player's frame rate target below 60 (DM_FPS=30, the iOS setting
-// or 135's thermal hold), 0 for none. The target alone used to set the display link's rate only: a game choosing interval 1 itself (Tears of the
-// Kingdom's 60 fps build in its map screen) kept presenting 60 frames a second at a 30 Hz link, half of them drawn and dropped (plan item 135b)
-static inline int nvn_pace_hold(int hold_fps, int target_fps) {
-#ifndef DM_TEST_TARGET_NOT_HELD   // negative control of t_pace only: the game's hold alone, as before
-    if (target_fps > 0 && target_fps < 60 && (!hold_fps || target_fps < hold_fps)) return target_fps;
-#else
-    (void)target_fps;
+// The hold a frame is paced with: the player's frame rate target below 60 (DM_FPS=30, the iOS setting or 135's thermal hold), 0 for none. The
+// target alone used to set the display link's rate only: a game choosing interval 1 itself kept presenting 60 frames a second at a 30 Hz
+// link, half of them drawn and dropped (plan item 135b)
+static inline int nvn_pace_hold(int target_fps) {
+#ifndef DM_TEST_TARGET_NOT_HELD   // negative control of t_pace only: no hold from the target, as before
+    if (target_fps > 0 && target_fps < 60) return target_fps;
 #endif
-    return hold_fps;
+    return 0;
 }
 // The iOS frame rate the device can afford (plan item 135, after super-mario-odyssey-ios's frame pacer, MIT): the player's setting, held at 30 in
 // Low Power Mode or from thermal state Serious up (NSProcessInfoThermalStateSerious = 2, Critical = 3), where iOS throttles the device anyway and a

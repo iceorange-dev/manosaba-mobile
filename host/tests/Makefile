@@ -129,9 +129,7 @@ run: \
 	$(B)/t_net \
 	$(B)/t_net_bsd \
 	$(B)/t_oe \
-	$(B)/t_oe_noop \
 	$(B)/t_oe_unlocked \
-	$(B)/t_oe_noios \
 	$(B)/t_lang \
 	$(B)/t_mano_display \
 	$(B)/t_mano_display_const \
@@ -508,18 +506,10 @@ run: \
 	   cat $(B)/t_net_bsd.log; echo "t_net_bsd: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_net_bsd: the FreeBSD errno numbers are not nn::socket's, as expected"
 	$(B)/t_oe 2>/dev/null
-	@status=0; $(B)/t_oe_noop > $(B)/t_oe_noop.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "FAIL inactivity time extended" $(B)/t_oe_noop.log; then \
-	   cat $(B)/t_oe_noop.log; echo "t_oe_noop: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_oe_noop: the old stub never holds the frame rate, as expected"
 	@status=0; $(B)/t_oe_unlocked > $(B)/t_oe_unlocked.log 2>/dev/null || status=$$?; \
 	 if [ "$$status" -ne 1 ] || ! grep -q "FAIL event signalled with the message pushed" $(B)/t_oe_unlocked.log; then \
 	   cat $(B)/t_oe_unlocked.log; echo "t_oe_unlocked: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_oe_unlocked: the event cleared after unlocking ends clear with a message queued, as expected"
-	@status=0; $(B)/t_oe_noios > $(B)/t_oe_noios.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '^FAIL' $(B)/t_oe_noios.log)" -ne 1 ] || ! grep -q "FAIL iOS, a profile with ios_mode handheld" $(B)/t_oe_noios.log; then \
-	   cat $(B)/t_oe_noios.log; echo "t_oe_noios: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_oe_noios: without the profile's iOS mode Tears of the Kingdom starts docked on iOS, as expected"
 	$(B)/t_lang
 	@status=0; $(B)/t_lang_region > $(B)/t_lang_region.log 2>/dev/null || status=$$?; \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_lang_region.log)" -ne 6 ]; then \
@@ -1149,10 +1139,6 @@ $(B)/t_oe: t_oe.c ../hle/hle_oe.c ../hle.h ../dm.h ../game/game.c $(GEN) | $(B)
 	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -I.. -o $@ t_oe.c ../game/game.c $(GEN)
 $(B)/t_oe_unlocked: t_oe.c ../hle/hle_oe.c ../hle.h ../dm.h ../game/game.c $(GEN) | $(B)
 	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -DDM_TEST_OE_EVENT_UNLOCKED -I.. -o $@ t_oe.c ../game/game.c $(GEN)
-$(B)/t_oe_noios: t_oe.c ../hle/hle_oe.c ../hle.h ../dm.h ../game/game.c $(GEN) | $(B)
-	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -DDM_TEST_OPMODE_NO_IOS -I.. -o $@ t_oe.c ../game/game.c $(GEN)
-$(B)/t_oe_noop: t_oe.c ../hle/hle_oe.c ../hle.h ../dm.h ../game/game.c $(GEN) | $(B)
-	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -DDM_TEST_INACTIVITY_NOOP -I.. -o $@ t_oe.c ../game/game.c $(GEN)
 $(B)/t_rng_font: t_rng_font.c ../hle/hle_os.c ../hle/hle_pl.c ../hle.h ../dm.h | $(B)
 	clang -O1 -Wall -Wno-unused-function -I.. -o $@ t_rng_font.c
 $(B)/t_rng_font_rev: t_rng_font.c ../hle/hle_os.c ../hle/hle_pl.c ../hle.h ../dm.h | $(B)

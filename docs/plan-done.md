@@ -132,7 +132,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   prologue 2,314 MB against 3,545 MB decompressed and 1,984 MB with BC.
 - 62c3 · b55 · BC textures the GPU writes, decoded after the pass on GPUs without BC (Apple's Metal Feature Set Tables of 2026-05-21: every
   iPhone with an A14, A15 or A16); BC6H / BC7 still left out.
-- 62d · b54 · handheld mode by default on iOS: game.json `ios_mode` "handheld" (Tears of the Kingdom; manosaba stays docked).
 - 62e · b54 · RomFS as 1 GiB parts with an index (`tools/romfs_parts.py`, `romfs.dmri`), unpacked at the next launch.
 - 62f · b54 · `maxBufferLength` and the recommended working set on the "Metal device" line (mush8 PR #3); `DM_COOL_START=nominal` (or `fair`)
   waits for that thermal state (T5eng: the same scene at 60 fps on a cool phone, 30 on a hot one).
@@ -269,7 +268,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   acnh-mobile's zones, bayonetta3-mobile's NaN alpha reference; the core table stays Atmosphère's where totk-mobile expects otherwise.
 - 129 · b31 · rewriter: a jump table whose add has the loaded entry first is found; decoding goes past a word Capstone cannot decode; equiv
   takes an exclusive store's success path; a synthetic module in CI (smo's selftest words, bayonetta3-mobile's sequences).
-- 130 · b32 · pre-rendered movies held at 30 fps (`games/totk/movie_fps.c`; FPSLocker's flag). `DM_INACTIVITY_FPS` replaces the held rate.
 - 131 · b33 · the game's GPU time: each TIMESTAMP report takes its place inside the submission (`gfx/nvn/nvn_ts.h`); the game reads p50
   6.33 ms. `DM_NVN_GPU_TS=completion` restores the old timing.
 - 131a · b61, b117 · what sets the game's dynamic resolution: looked for in b61 (no enable bit found), answered by 276 (the controller main+0x584300).
@@ -833,6 +831,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196-b199) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
-  `games/totk`, `engines/bnsh`, the game commands and frame-sync hook, sead's heap diagnostics, MetalFX for a game's own upscale pass, the
-  host's frame step, the frame-rate trials, uncapped pacing, ProMotion's 120 Hz, with their tests and documents. Left: plan.md.
+- 328 · part (b196-b200) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
+  `games/totk`, `engines/bnsh`, the hooks only it implemented with what they drove (the frame step, the frame-rate trials, uncapped pacing,
+  ProMotion's 120 Hz, the movies' hold), sead's heaps, MetalFX for a game's own upscale pass, four profile fields. Left: plan.md.

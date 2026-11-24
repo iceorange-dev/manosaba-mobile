@@ -1,6 +1,6 @@
 // nn::oe (application operating environment): on the console the state comes from the am / oe services; the host answers with its own state.
 // oe::Initialize is in hle_sdkinit.c.
-// Environment: DM_OPMODE=0 handheld / 1 console (default 1; on iOS the profile's ios_mode); DM_LANG=language code (default: the game profile's language);
+// Environment: DM_OPMODE=0 handheld / 1 console (default 1); DM_LANG=language code (default: the game profile's language);
 // DM_OE_SCRIPT="focus=3@10,focus=1@20,opmode=0@30" changes state at those seconds (counted from the game's first notification fetch), for testing without a window.
 #include "hle.h"
 #include "game.h"
@@ -8,18 +8,11 @@
 #include <stdatomic.h>
 #include <unistd.h>
 
-// Operation mode: runtime state (the front end may change it), first DM_OPMODE when it is set; else on iOS handheld for a game whose profile says
-// so (game.json "ios_mode": "handheld", plan item 62d: Tears of the Kingdom renders 1280x720 as the console in hand, not 1920x1080), else console
-int dm_opmode_start(const char *env, int iphone, int ios_handheld) {
-#ifndef DM_TEST_OPMODE_NO_IOS   // negative control of host/tests t_oe only: the profile's iOS mode not read
-    if (!env && iphone && ios_handheld) return 0;
-#endif
-    return env ? atoi(env) : 1;
-}
+// Operation mode: runtime state (the front end may change it), first DM_OPMODE when it is set, else console
 static _Atomic int g_opmode = -1;
 int dm_opmode(void) {
     int m = g_opmode;
-    if (m < 0) { int v = dm_opmode_start(getenv("DM_OPMODE"), TARGET_OS_IPHONE, dm_game.ios_handheld); int exp = -1; atomic_compare_exchange_strong(&g_opmode, &exp, v); m = g_opmode; }
+    if (m < 0) { const char *e = getenv("DM_OPMODE"); int v = e ? atoi(e) : 1; int exp = -1; atomic_compare_exchange_strong(&g_opmode, &exp, v); m = g_opmode; }
     return m;
 }
 
@@ -191,24 +184,13 @@ HLE_FORCE_OPT("_ZN2nn2oe21TryPopLaunchParameterEPmPvm", "no launch parameter", u
     (void)buf; (void)n; if (out) *out = 0; return 0;
 }
 HLE_FORCE_OPT("_ZN2nn2oe17FinishStartupLogoEv", "the host shows no startup logo", void, h_oe_FinishLogo, void) {}
-// The host does not dim the screen. A game may hold its frame rate meanwhile (plan item 130): the game hook dm_game_inactivity_fps gets the call and the
-// guest's return address and gives the rate (0 = none): Tears of the Kingdom extends the time for every cutscene and holds only its pre-rendered
-// movies at 30 fps (games/totk/movie_fps.c). DM_INACTIVITY_FPS replaces a rate the hook gives (0 = no hold)
-void nvn_fps_hold(int fps);   // gfx/nvn/hle_nvn.c
-static void oe_inactivity(unsigned on, uint64_t ra) {   // a bool: only the low 8 bits count (below)
-#ifdef DM_TEST_INACTIVITY_NOOP   // negative control of t_oe only: the old stub, which ignored it
-    (void)on; (void)ra; return;
-#endif
-    on &= 0xff;
-    int fps = dm_game_inactivity_fps(on != 0, ra); const char *e = getenv("DM_INACTIVITY_FPS");
-    if (fps > 0 && e) fps = atoi(e);
+// The host does not dim the screen: the call is taken and logged with its caller
+static void oe_inactivity(unsigned on, uint64_t ra) {   // a bool: only the low 8 bits count
     module_t *m = module_of((const void *)ra);
-    LOG("oe::SetUserInactivityDetectionTimeExtended(%d) from %s+%#llx%s", on != 0, m ? m->name : "?", m ? (unsigned long long)(ra - (uint64_t)m->base) : (unsigned long long)ra,
-        fps > 0 ? ": frame rate held" : "");
-    nvn_fps_hold(fps > 0 ? fps : 0);
+    LOG("oe::SetUserInactivityDetectionTimeExtended(%d) from %s+%#llx", (on & 0xff) != 0, m ? m->name : "?", m ? (unsigned long long)(ra - (uint64_t)m->base) : (unsigned long long)ra);
 }
-HLE_FORCE_OPT("_ZN2nn2oe38SetUserInactivityDetectionTimeExtendedEb", "the host does not dim the screen; the game hook may hold the frame rate meanwhile", void, h_oe_Inactivity, unsigned on) { oe_inactivity(on, DM_GUEST_RA()); }
-HLE_FORCE_OPT("_ZN2nn2oe44SetUserInactivityDetectionTimeExtendedUnsafeEb", "the host does not dim the screen; the game hook may hold the frame rate meanwhile", void, h_oe_InactivityU, unsigned on) { oe_inactivity(on, DM_GUEST_RA()); }
+HLE_FORCE_OPT("_ZN2nn2oe38SetUserInactivityDetectionTimeExtendedEb", "the host does not dim the screen", void, h_oe_Inactivity, unsigned on) { oe_inactivity(on, DM_GUEST_RA()); }
+HLE_FORCE_OPT("_ZN2nn2oe44SetUserInactivityDetectionTimeExtendedUnsafeEb", "the host does not dim the screen", void, h_oe_InactivityU, unsigned on) { oe_inactivity(on, DM_GUEST_RA()); }
 HLE_FORCE_OPT("_ZN2nn2oe24GetExpectedVolumeBalanceEPfS1_", "system / application volume balance: always 1:1", void, h_oe_GetVolBal, float *sys, float *app) { *sys = 1.0f; *app = 1.0f; }
 HLE_FORCE_OPT("_ZN2nn2oe24SetExpectedVolumeBalanceEff", "volume balance: ignored", void, h_oe_SetVolBal, float sys, float app) { (void)sys; (void)app; }
 // Applet resource user ID (the number am gives this process): the SDK's own getter returns 0 without am, and SDK 20's OpenAudioRenderer aborts on 0
