@@ -118,7 +118,6 @@ uint64_t mtl_sub_commit(void) {
 #endif
     cb_committed(); trace_end(TR_COMMIT, tr, fence, tr_part);
     g_us.n = 0;   // the uniform copies belong to this submission
-    g_cap_cur = NULL;   // and its capture (the translation thread frees it)
     g_alloc_fence[g_alloc_cur] = fence;
     g_cb = nil;
     g_commit_blocks = nil;

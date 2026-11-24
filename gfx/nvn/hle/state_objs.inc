@@ -84,7 +84,7 @@ static uint64_t thr_instr(void) { uint64_t i, c; dm_self_counts(&i, &c); return 
 // this thread's cycle count (the second item of the same interface), kernel-mode CPU time (THREAD_BASIC_INFO), wall clock
 static void thr_counts(uint64_t *instr, uint64_t *cyc) { dm_self_counts(instr, cyc); }
 // The same per CPU kind (plan item 225): THSC_TIME_CPI_PER_PERF_LEVEL = 4 fills one {instructions, cycles, user time, system time} (mach units) per
-// perf level, hw.nperflevels of them, 0 the fastest (XNU bsd/sys/resource_private.h, struct thsc_time_cpi). Whether the translation thread, the
+// perf level, hw.nperflevels of them, 0 the fastest (XNU bsd/sys/resource_private.h, struct thsc_time_cpi). Whether the thread that replays, the
 // frame's critical path on the iPhone, runs on the performance cores, and at what clock there
 typedef dm_level_counts thr_lvl;   // (plat.h)
 enum { THR_LVL_MAX = 4 };

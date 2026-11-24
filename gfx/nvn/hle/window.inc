@@ -39,6 +39,8 @@ NVN(nvnWindowGetCrop, void, const NVNwindow *w, NVNrectangle *r) { const win_t *
 static void trow(uint64_t f, const char *name, double v);
 static void set_time_constraint(uint64_t period_ns);
 static void rt_comp_tick(uint64_t period_ns);
+static int rt_peak(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_RT_PEAK"); v = e && !strcmp(e, "1"); if (v) LOG("[nvn] DM_RT_PEAK=1: real-time computations declared to cover 1.1 x each 120-frame window's longest frame too"); } return v; }   // (plan item 248)
+static int rt_old(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_RT_DECL"); v = e && !strcmp(e, "old"); if (v) LOG("[nvn] DM_RT_DECL=old: time constraints declared as before 2026-10-22"); } return v; }   // (nvn_pace.h nvn_rt_*)
 static double g_rt_comp_ms;   // Currently declared real-time computation amount (ms; 0 = not declared)
 static double g_rt_period_ms;
 static void sleep_until_ns(uint64_t dl);
@@ -86,12 +88,9 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
     g_acq_wait_ns += wait; trow(g_frame, "@late_ms", wait ? (now_ns() - at) / 1e6 : 0);
     // The previous present of this texture has not yet been processed by the present thread (display cannot keep up, a whole swapchain round behind): wait for it to be returned, then hand it to the game to draw
     uint64_t tk = *idx < 4 ? o->ticket[*idx] : 0;
-    if (tk && xlat_on()) tk = x_present_ticket(tk);   // the image's last present job has run: its present-thread ticket (plan item 61)
     if (tk) { uint64_t w0 = now_ns(); mtl_present_wait(tk); g_pq_wait_ns += now_ns() - w0; }
     { uint64_t rf = *idx < 4 ? o->rfence[*idx] : 0; g_acq_n++;   // the frame last drawn into this image (see g_acq_early)
 #ifndef DM_TEST_ACQ_GPU_NO_WAIT   // negative control of t_nvn only: never waits
-      if (rf & SYNC_TOKEN) { uint64_t f;   // a token: its fence once translated (the wait waits for that too); not translated yet counts as early
-          if (x_token_fence(rf & ~SYNC_TOKEN, acq_gpu_wait() ? 5000000000ull : 0, &f)) rf = f; else { g_acq_early++; rf = 0; } }
       if (rf && mtl_done_fence() < rf) { g_acq_early++; if (acq_gpu_wait()) { uint64_t w0 = now_ns(); mtl_wait(rf, 5000000000ull); g_acq_gpu_ns += now_ns() - w0; } }
 #endif
     }
@@ -100,7 +99,7 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
     // CPU here until the whole previous frame had run, so the replay of a frame and the GPU work of the one before never overlapped (MacNativeGames,
     // MIT: TOTK_ACQ_SYNC). DM_NVN_ACQ_SYNC=newest restores that (A/B)
     if (s) { static int newest = -1; if (newest < 0) { const char *e = getenv("DM_NVN_ACQ_SYNC"); newest = e && !strcmp(e, "newest"); if (newest) LOG("[nvn] DM_NVN_ACQ_SYNC=newest: the acquire sync waits for the newest submission"); }
-             if (newest && xlat_on()) sync_token_store((sync_t *)s, x_token()); else sync_fence_store((sync_t *)s, newest ? mtl_last_fence() : 0); }
+             sync_fence_store((sync_t *)s, newest ? mtl_last_fence() : 0); }
     trace_end(TR_ACQUIRE, tr, (uint64_t)*idx, wait);
     return NVN_WINDOW_ACQUIRE_TEXTURE_RESULT_SUCCESS;
 }

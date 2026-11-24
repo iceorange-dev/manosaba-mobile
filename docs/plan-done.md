@@ -262,9 +262,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   Kingdom. `DM_NVN_GPUWATCH` now also compares the vertex and index ranges draws read in place.
 - 225 · b77 · the translation thread made cheaper: uniform range copies made from their previous one, vertex streams bound once per encoder, the
   uniform copies under one fault guard a run. The phone's island at 120 Hz: sustained 50.6 → 56.0 fps.
-- 226 · b110, b111 · the submit call's capture walks its lists breadth first (`gfx/nvn/core/capture.c`): calls go on a queue and the list
-  48 places on is fetched as one is taken. Tears of the Kingdom on the M5 Mac standing on Great Sky Island: the lists 215 → 161 us, the capture
-  322 → 265 us. Tried and left: recording-time notes (359 against 347 us), no de-duplication before the sort (364 us). Closed b111, rest under 271.
 - 228 · b78 · mid-submission commits with the TBDR rewrites that neither merge nor defer passes; store decisions and same-target continuation
   alone: 55.1 fps against 56.0 on the phone. Not a default.
 - 229 · not taken (b183) · the guest main thread's QoS class (`DM_MAIN_QOS=ui` gives it user-interactive, batch 79): its A/B on the
@@ -522,7 +519,7 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196-b204) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
+- 328 · part (b196-b205) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
   `games/totk`, `engines/bnsh`, the hooks only it implemented with what they drove (the frame step, uncapped pacing, ProMotion's 120 Hz, the
   movies' hold), sead's heaps, eight profile fields, mods, cheats, pchtxt, the on-screen touch pad, nn::nfp and nn::codec, VP8 / VP9 movies
-  with libvpx (329; the game's clips are H.264 and AAC in MP4), the virtual cores. Left: plan.md.
+  with libvpx (329; the game's clips are H.264 and AAC in MP4), the virtual cores, the translation thread. Left: plan.md.

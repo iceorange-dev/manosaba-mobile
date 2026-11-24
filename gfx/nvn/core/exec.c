@@ -1,7 +1,7 @@
 // gfx/nvn/core/exec.c: the replay loop (see exec.h; plan item 264 moved it here from the Metal backend's mtl/exec.inc, where it was mtl_exec)
 #include "exec.h"
 #include "../nvn_backend.h"
-#include "capture.h"
+#include "usnap.h"
 #include "cond.h"
 #include "rt.h"
 #include "tbdr.h"
@@ -101,10 +101,6 @@ void nvn_exec(const uint8_t *p) {
             case OP_SIGNAL_EVENT: { volatile uint32_t *val; uint32_t m, v; memcpy(&val, a, 8); memcpy(&m, (const uint8_t *)a + 8, 4); memcpy(&v, (const uint8_t *)a + 12, 4);
                 PD("Y signal_event cmd=%p dst=%p mode=%u value=%u", p, val, m, v); nvn_be_signal_event(val, m, v); break; }
             case OP_FENCE_SYNC: { sync_t *sy; memcpy(&sy, a, 8);   // this submission commits with fence nvn_be_sub_fence()
-                if (g_cap_cur) {   // the translation thread: the capture fenced it to this submission's token; a later submission's token stays (a newer FenceSync)
-                    uint64_t want = g_cap_cur->token | SYNC_TOKEN;
-                    __atomic_compare_exchange_n(&sy->fence, &want, nvn_be_sub_fence(), 0, __ATOMIC_RELEASE, __ATOMIC_RELAXED);
-                    break; }
 #ifndef DM_TEST_FENCE_SYNC_LAST   // negative control of t_rqueue only: the last submission's fence, as a fence read before its own is published
                 sync_fence_store(sy, nvn_be_sub_fence());
 #else

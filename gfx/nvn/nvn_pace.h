@@ -63,8 +63,8 @@ static inline int nvn_link30_step(nvn_link30 *s, unsigned itv, unsigned hz, uint
 static inline double nvn_hold_ms(uint64_t period_ns) { return period_ns ? period_ns / 1e6 : 1000.0 / 60; }
 // When a present reached the screen, for the statistics above (plan item 71b): by the ticket the present thread gave it, not by the game's count of
 // presents. A present made while presents are discarded (a covered window, the app in the background) gets no ticket, so the count ran ahead of the
-// tickets from then on and no later present was ever found: "on screen –" for the rest of the run. known: PresentTexture's ticket is known (on
-// the translation thread its job has run); ticket 0: discarded before it was queued; shown: the present thread's time for that ticket (seconds;
+// tickets from then on and no later present was ever found: "on screen –" for the rest of the run. known: PresentTexture's ticket is known;
+// ticket 0: discarded before it was queued; shown: the present thread's time for that ticket (seconds;
 // 0 none yet, -1 dropped). Returns seconds, 0 for no reading, -1 for dropped or discarded
 static inline double nvn_pres_time(int known, uint64_t ticket, double shown) {
     if (!known) return 0;
@@ -152,15 +152,14 @@ static inline int nvn_frame_latency(int setting, int link_hz) {
     (void)link_hz; return 2;
 #endif
 }
-// The time-constraint declaration of a per-frame thread (the acquiring thread and the translation thread; plan item 61d). Its period is the frame
+// The time-constraint declaration of a per-frame thread (the acquiring thread; plan item 61d). Its period is the frame
 // rate cap's (the display rate times the app's own hold, nvn_hold_interval(1, hz, hold)), not one the game raised for lateness: with the game's
 // interval 2 declared, Tears of the Kingdom on an iPhone went from 3.4 to 1.5 GHz and from 65 % to 5 % of its CPU time on performance cores at
 // thermal state 0 and stayed at 23-30 fps (seedds/nxnative 5efe1d8, MIT; ours on the iPhone 17 Pro: 0-15 % on performance cores, 0.9-1.3 GHz). A new
 // period keeps the computation declared so far, which went back to 2 ms before (nxnative 04ea8f8, MacNativeGames c5d8671, MIT); the computation
 // follows 1.25 x the p90 of the thread's own CPU time a frame over 120 frames, between 1 ms and 0.9 of the period (nvn_rt_sample). Using more than
 // the computation does not demote the thread (XNU sched_prim.c / priority.c: it ends the thread's deadline for that period; the fail-safe demotion
-// needs about 100 quanta without blocking). DM_RT_DECL=old declares as before (the held period, 2 ms again on each change, half the period for the
-// translation thread)
+// needs about 100 quanta without blocking). DM_RT_DECL=old declares as before (the held period, 2 ms again on each change)
 static inline uint64_t nvn_rt_period_ns(int hz, int hold_interval) {
     return hz > 0 ? (uint64_t)(hold_interval > 0 ? hold_interval : 1) * 1000000000ull / (uint64_t)hz : 0;
 }

@@ -20,7 +20,6 @@ NVN(nvnMemoryPoolInitialize, NVNboolean, NVNmemoryPool *p, const NVNmemoryPoolBu
     return 1;
 }
 NVN(nvnMemoryPoolFinalize, void, NVNmemoryPool *p) {
-    x_drain();   // a queued replay may still use it (plan item 61)
     pool_t *o = (pool_t *)p;
     if (o->mem && o->size && !(o->flags & 0x200)) { nvn_dirty_remove_range(o->mem); mtl_pool_del(o->mem); }   // (an empty pool registered nothing)   // a virtual pool's storage belongs to a physical pool (MapVirtual)
     o->magic = 0;
@@ -55,7 +54,7 @@ NVN(nvnMemoryPoolGetBufferAddress, NVNbufferAddress, const NVNmemoryPool *p) { r
 // Pool memory is the real memory given by the game (same address for CPU and GPU), so mapping returns the original pointer; cache maintenance has nothing to do
 NVN(nvnMemoryPoolMap, void *, const NVNmemoryPool *p) { return ((const pool_t *)p)->mem; }
 void mtl_pool_invalidate(const pool_t *p, uint64_t off, uint64_t n);   // the CPU is about to read what the GPU wrote: GPU results of this range are written back (nvn_mtl.m)
-NVN(nvnMemoryPoolInvalidateMappedRange, void, const NVNmemoryPool *p, ptrdiff_t off, size_t n) { x_drain(); if (off >= 0) mtl_pool_invalidate((const pool_t *)p, (uint64_t)off, n); }
+NVN(nvnMemoryPoolInvalidateMappedRange, void, const NVNmemoryPool *p, ptrdiff_t off, size_t n) { if (off >= 0) mtl_pool_invalidate((const pool_t *)p, (uint64_t)off, n); }
 NVN(nvnMemoryPoolGetSize, size_t, const NVNmemoryPool *p) { return ((const pool_t *)p)->size; }
 NVN(nvnMemoryPoolGetFlags, NVNmemoryPoolFlags, const NVNmemoryPool *p) { return (NVNmemoryPoolFlags)((const pool_t *)p)->flags; }
 NVN(nvnMemoryPoolBuilderGetSize, size_t, const NVNmemoryPoolBuilder *b) { return ((const pool_builder_t *)b)->size; }

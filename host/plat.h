@@ -29,7 +29,7 @@ int dm_mem_region(uint64_t *at, uint64_t *size, int *readable);   // the mapped 
 void dm_after_ms(unsigned ms, void (*fn)(void));             // fn once, on a thread of its own, ms from now
 void dm_on_signal(int sig, void (*fn)(void));                // fn on an ordinary thread (not in a handler) each time sig arrives
 
-// Scheduling and accounting of threads. Latency-bound threads (the audio notifier, the translation thread, guest work) ask for the interactive class:
+// Scheduling and accounting of threads. Latency-bound threads (the audio notifier, guest work) ask for the interactive class:
 // Apple's QoS user-interactive; elsewhere nothing yet (the phone's own means are plan item 301f)
 #include <pthread.h>
 void dm_attr_interactive(pthread_attr_t *a);                 // a thread created with a runs at the interactive class

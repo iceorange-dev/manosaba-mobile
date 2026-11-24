@@ -17,7 +17,6 @@ NVN(nvnSyncFinalize, void, NVNsync *s) { ((sync_t *)s)->magic = 0; }
 // Fence = "all commands previously submitted to the queue have completed": record the fence value of the most recent submit
 NVN(nvnQueueFenceSync, void, NVNqueue *q, NVNsync *s, NVNsyncCondition c, int f) {
     (void)q; (void)c; (void)f;
-    if (xlat_on()) { uint64_t k = x_token(); sync_token_store((sync_t *)s, k); trace_end(TR_FENCE, trace_now(), k | SYNC_TOKEN, 0); return; }   // the submissions queued so far (plan item 61)
     uint64_t fe = mtl_last_fence(); sync_fence_store((sync_t *)s, fe); trace_end(TR_FENCE, trace_now(), fe, 0);
 }
 // A sync object that was never fenced: FAILED, as the SDK's NVNsyncWaitResult says (plan item 116; it was TIMEOUT_EXPIRED; dr3-mobile follows the
@@ -31,7 +30,6 @@ static _Atomic uint64_t g_sw_n, g_sw_newest, g_sw_ns;
 void nvn_syncwait_stats(uint64_t out[3]) { out[0] = atomic_load(&g_sw_n); out[1] = atomic_load(&g_sw_newest); out[2] = atomic_load(&g_sw_ns); }
 NVN(nvnSyncWait, NVNsyncWaitResult, const NVNsync *s, uint64_t timeout) {
     uint64_t f0 = 0, t0 = now_ns(), tr = trace_now(); int newest = s && sync_fence_load((const sync_t *)s, &f0) && f0 && f0 == mtl_last_fence() && mtl_done_fence() < f0;
-    if (s && (f0 & SYNC_TOKEN)) { uint64_t k = f0 & ~SYNC_TOKEN, fk; newest = k && k == x_token() && !(x_token_fence(k, 0, &fk) && mtl_done_fence() >= fk); }
 #ifdef DM_TEST_SYNCWAIT_DONE_TOO   // negative control of t_nvn only: a wait on the newest fence counted even when it is done
     newest = s && f0 && f0 == mtl_last_fence();
 #endif
@@ -51,13 +49,6 @@ static NVNsyncWaitResult sync_wait(const NVNsync *s, uint64_t timeout) {
 #else
         return NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED;
 #endif
-    }
-    if (fence & SYNC_TOKEN) {   // a submission in the translation thread's queue when it was fenced (plan item 61): its translation, then its Metal fence
-        uint64_t f, t0 = now_ns();
-        if (x_token_fence(fence & ~SYNC_TOKEN, 0, &f) && mtl_wait(f, 0)) return NVN_SYNC_WAIT_RESULT_ALREADY_SIGNALED;
-        if (!x_token_fence(fence & ~SYNC_TOKEN, timeout, &f)) return NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED;
-        uint64_t used = now_ns() - t0;
-        return mtl_wait(f, timeout > used ? timeout - used : 0) ? NVN_SYNC_WAIT_RESULT_CONDITION_SATISFIED : NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED;
     }
     if (mtl_wait(fence, 0)) return NVN_SYNC_WAIT_RESULT_ALREADY_SIGNALED;
     return mtl_wait(fence, timeout) ? NVN_SYNC_WAIT_RESULT_CONDITION_SATISFIED : NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED;

@@ -1,5 +1,5 @@
 // gfx/nvn/mtl/usnap.inc, part of nvn_mtl.m (included there in order, one translation unit): Uniform snapshots' backend side: the pools, arena, worker threads and fences they use; dropping the copies a GPU write reaches, and what a range reads as at this point of the replay (pend_read)
-// The snapshots themselves are gfx/nvn/core/usnap.c, the submit call's capture gfx/nvn/core/capture.c (plan item 264)
+// The snapshots themselves are gfx/nvn/core/usnap.c (plan item 264)
 static inline void args_dirty_all(void);
 // arena_alloc's buffer comes back unretained (plan item 185): the arena holds it until the submission completes, and an autoreleasing out parameter
 // cost a retain, an autorelease and a release per call, several per draw (t_fbx ar; -DDM_TEST_ARENA_AUTORELEASING as before)

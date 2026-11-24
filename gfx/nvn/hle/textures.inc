@@ -116,7 +116,6 @@ static void tex_census(const tex_t *o, int rt) {   // rt: o is a colour target o
 }
 NVN(nvnTextureInitialize, NVNboolean, NVNtexture *t, const NVNtextureBuilder *b) {
     const tex_builder_t *s = (const tex_builder_t *)b; tex_t *o = TX(t);
-    if (o->magic == MAGIC('T', 'E', 'X', 0) && o->serial) x_drain();   // a live object initialized again: a queued replay may still read it (plan item 61)
     OLOG("TextureInitialize t=%p b=%p builder.off=%#llx", (void *)t, (const void *)b, (long long)s->off);
     { static int red; if (s->d.ds_mode && !red++) LOG("[red] TextureInitialize: depth-stencil texture sampled as stencil (ds_mode=%d): Metal stencil view not implemented, still sampling depth", s->d.ds_mode); }
     memset(o, 0, sizeof *o);
@@ -133,7 +132,7 @@ NVN(nvnTextureInitialize, NVNboolean, NVNtexture *t, const NVNtextureBuilder *b)
          o->d.levels, o->d.format, o->d.target, o->d.flags, (unsigned long long)o->size, (void *)o->mem);
     return 1;
 }
-NVN(nvnTextureFinalize, void, NVNtexture *t) { x_drain(); OLOG("TextureFinalize %p ser %llu", (void *)t, TX(t)->serial); mtl_tex_release(TX(t)); TX(t)->magic = 0; }
+NVN(nvnTextureFinalize, void, NVNtexture *t) { OLOG("TextureFinalize %p ser %llu", (void *)t, TX(t)->serial); mtl_tex_release(TX(t)); TX(t)->magic = 0; }
 NVN(nvnTextureGetFlags, NVNtextureFlags, const NVNtexture *t) { return (NVNtextureFlags)CTX(t)->d.flags; }
 NVN(nvnTextureGetWidth, int, const NVNtexture *t) { return (int)CTX(t)->d.width; }
 NVN(nvnTextureGetHeight, int, const NVNtexture *t) { return (int)CTX(t)->d.height; }
@@ -229,10 +228,10 @@ static void gfx_mt_enter(const char *what) {
 }
 static void gfx_mt_leave(void) { pthread_mutex_unlock(&g_gfx_mu); }
 NVN(nvnTextureReadTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, void *dst) {
-    x_drain(); gfx_mt_enter("ReadTexels"); read_texels(CTX(t), (const view_t *)v, r, dst, 0, 0); gfx_mt_leave();
+    gfx_mt_enter("ReadTexels"); read_texels(CTX(t), (const view_t *)v, r, dst, 0, 0); gfx_mt_leave();
 }
 NVN(nvnTextureReadTexelsStrided, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, void *dst, ptrdiff_t row, ptrdiff_t img) {
-    x_drain(); gfx_mt_enter("ReadTexelsStrided"); read_texels(CTX(t), (const view_t *)v, r, dst, row, img); gfx_mt_leave();
+    gfx_mt_enter("ReadTexelsStrided"); read_texels(CTX(t), (const view_t *)v, r, dst, row, img); gfx_mt_leave();
 }
 NVN(nvnTextureInvalidateTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r) { (void)t; (void)v; (void)r; }
 // CPU texture write (NVN WriteTexels): stride 0 = tightly packed (same as ReadTexels)

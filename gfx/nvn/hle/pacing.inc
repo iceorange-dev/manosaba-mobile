@@ -96,17 +96,12 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
       if (sf > 0 && g_frame == (uint64_t)sf) { LOG("DM_TEST_PRESENT_STALL: present held for %.1f s at frame %llu", ss, (unsigned long long)g_frame); usleep((useconds_t)(ss * 1e6)); } }
     gfx_enter();
     uint64_t t0 = now_ns();
-    static struct { uint64_t id; uint8_t job, set; } ptk[16];   // what each of the last presents got: a ticket, or a present job (the statistics below ask by it)
+    static struct { uint64_t id; uint8_t set; } ptk[16];   // the ticket each of the last presents got (the statistics below ask by it)
     ptk[o->presents % 16].set = 0;
-    if (xlat_on()) {   // a job after the frame's submissions (plan item 61): ticket[idx] holds the job, rfence[idx] the token of the frame's last submission
-        if (idx >= 0 && idx < o->ntex && idx < 4) { xjob j = {.kind = XJ_PRESENT, .tex = CTX(o->tex[idx]), .period = present_period(o) / 1e9}; memcpy(j.crop, o->crop, sizeof j.crop);
-            pthread_mutex_lock(&g_xord_mu); o->ticket[idx] = x_push(&j); o->rfence[idx] = x_token() | SYNC_TOKEN; pthread_mutex_unlock(&g_xord_mu); }
-    } else {
     gfx_mt_enter("PresentTexture");
     if (idx >= 0 && idx < o->ntex && idx < 4) { o->ticket[idx] = mtl_present(CTX(o->tex[idx]), present_period(o) / 1e9, o->crop); o->rfence[idx] = mtl_last_fence(); }   // enqueue only, return immediately; the frame's work is committed (QueueSubmitCommands replays and commits at once)
     gfx_mt_leave();
-    }
-    if (idx >= 0 && idx < o->ntex && idx < 4) { ptk[o->presents % 16].id = o->ticket[idx]; ptk[o->presents % 16].job = (uint8_t)xlat_on(); ptk[o->presents % 16].set = 1; }
+    if (idx >= 0 && idx < o->ntex && idx < 4) { ptk[o->presents % 16].id = o->ticket[idx]; ptk[o->presents % 16].set = 1; }
     gfx_leave();
     atomic_fetch_add(&g_nvn_ns, now_ns() - t0);
     trace_end(TR_PRESENT, tr, (uint64_t)idx, g_frame);
@@ -191,7 +186,6 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
     prev_in = t0; prev_pass = ps; prev_draw = dr;
     dump_frame();
     if (g_frame % TWIN == 0) tsummary(g_frame);
-    if (xlat_on()) { xjob j = {.kind = XJ_FRAME, .frame = g_frame, .period = (rt_old() ? present_period(o) : rt_cap_period(o)) / 1e9}; pthread_mutex_lock(&g_xord_mu); x_push(&j); pthread_mutex_unlock(&g_xord_mu); }   // in order with the replays (plan item 61)
     else mtl_set_frame(g_frame);
     // Real-device semantics: present only enqueues and returns immediately; this frame's display time is scheduled by the pacer, and the texture can be acquired again only at "display time + one period" (blocking in AcquireTexture)
     uint64_t period = present_period(o), now = dm_detclock_enabled() ? guest_ns() : now_ns();
@@ -207,7 +201,6 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
         for (int q = 0; q < 2; q++) {   // by each present's own ticket (nvn_pace.h nvn_pres_time: the count runs ahead of the tickets once presents were discarded)
 #ifndef DM_TEST_PRES_BY_COUNT   // negative control (a window run with DM_TEST_COVER): by the count, as before
             uint64_t id = ptk[(n - q) % 16].id, tk = id; int known = ptk[(n - q) % 16].set;
-            if (known && ptk[(n - q) % 16].job) { pthread_mutex_lock(&g_xq_mu); known = g_xtk[id % XF].job == id; tk = known ? g_xtk[id % XF].tk : 0; pthread_mutex_unlock(&g_xq_mu); }
             ab_[q] = nvn_pres_time(known, tk, known && tk ? mtl_presented_time(tk) : 0);
 #else
             ab_[q] = mtl_presented_time(n - (uint64_t)q);

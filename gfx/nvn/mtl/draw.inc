@@ -176,7 +176,7 @@ static int draw_encode(id<MTLRenderCommandEncoder> en, __unsafe_unretained NvPro
     enc_r_depth_clip(en, !S.depth_clamp);
     enc_r_blend_color(en, S.blend_color[0], S.blend_color[1], S.blend_color[2], S.blend_color[3]);
     // A stream bound to the same address on this encoder is not looked up and set again (plan item 225): every draw set every stream, ~2 a draw
-    // and half the translation thread's address lookups in Tears of the Kingdom. Pool changes move addresses: a new generation binds all again
+    // and half the replay's address lookups in Tears of the Kingdom. Pool changes move addresses: a new generation binds all again
     { uint64_t pg = atomic_load_explicit(&g_pool_gen, memory_order_acquire); es_mine(en); if (g_es.vb_gen != pg) { memset(g_es.vb, 0, sizeof g_es.vb); g_es.vb_gen = pg; } }
     for (int s_ = 0; s_ < 16; s_++) {
         if (!S.vbuf[s_].address) continue;

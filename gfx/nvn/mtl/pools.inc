@@ -183,7 +183,7 @@ static int pool_range_ok(uintptr_t a, uintptr_t b, const void *mem, uint64_t siz
 // after the submissions using it complete (defer_obj_release), so an entry read just before a removal still names a live buffer
 static _Atomic uint64_t g_pool_gen = 1;
 typedef struct { uintptr_t lo, hi, base; __unsafe_unretained id<MTLBuffer> buf; uint64_t gpu; } pc_ent;
-// hits: this thread's cache hits (diagnostics, t_poolcache); last: the entry of the last hit, tried first. The translation thread looks up ~40,000
+// hits: this thread's cache hits (diagnostics, t_poolcache); last: the entry of the last hit, tried first. The replay looks up ~40,000
 // buffer addresses a frame in Tears of the Kingdom, most in one pool: the lookup (a thread-local access, an atomic count of the hits and the slow
 // path's register saves on every call) was 9 % of its time on the M5; with the hit counted per thread without an atomic, the slow path in a function
 // of its own and the vertex streams bound once per encoder (draw) it is 5 % (plan item 225)

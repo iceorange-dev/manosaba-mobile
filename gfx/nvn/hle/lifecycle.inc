@@ -12,20 +12,19 @@ void dm_gfx_suspend(int on) {
     if (on) while (g_inflight_api) pthread_cond_wait(&g_susp_cv, &g_susp_mu);
     else pthread_cond_broadcast(&g_susp_cv);
     pthread_mutex_unlock(&g_susp_mu);
-    if (on) { x_drain(); mtl_drain(); LOG("[nvn] graphics suspended: in-flight GPU work drained"); } else LOG("[nvn] graphics resumed");
+    if (on) { mtl_drain(); LOG("[nvn] graphics suspended: in-flight GPU work drained"); } else LOG("[nvn] graphics resumed");
 }
 // DM_TEST_WORK_MS=<ms> (a test of the pacing, plan item 53): the frame's first submission waits until <ms> after the previous present, as a game whose
 // own work takes that long; Tears of the Kingdom's frame-rate controller counts it (a wait in the present would not be: it measures to before it)
 static void sleep_until_ns(uint64_t dl);
 static _Atomic uint64_t g_test_work_from;   // the last present's time; taken by the frame's first submission
 static int test_work_ms(void) { static int ms = -1; if (ms < 0) { const char *e = getenv("DM_TEST_WORK_MS"); ms = e ? atoi(e) : 0; if (ms > 0) LOG("[nvn] DM_TEST_WORK_MS=%d: each frame's work made to take that long (a test)", ms); } return ms; }
-// The replay of one submission into Metal: on the calling thread, or the translation thread's (below) with the submit call's capture
-static uint64_t sub_exec(int n, const uint64_t *h, mtl_cap *cap) {
+// The replay of one submission, on the calling thread
+static uint64_t sub_exec(int n, const uint64_t *h) {
     gfx_mt_enter("SubmitCommands");
     uint64_t t0 = now_ns(), c0 = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID), i0, y0, s0 = thr_sys_ns(); thr_counts(&i0, &y0);
     thr_lvl l0[THR_LVL_MAX]; int lv = thr_levels(l0);
     mtl_sub_begin();
-    mtl_sub_install(cap);
     mtl_sub_index(h, n);
     mtl_sub_snapshot(h, n);
     for (int i = 0; i < n; i++) { nvn_exec_rest(h + i + 1, n - i - 1); nvn_exec((const uint8_t *)h[i]); }
@@ -41,4 +40,13 @@ static uint64_t sub_exec(int n, const uint64_t *h, mtl_cap *cap) {
           atomic_fetch_add(&g_cum_lvl_cyc[k], l1[k].cyc - l0[k].cyc); atomic_fetch_add(&g_cum_lvl_mach[k], (l1[k].user + l1[k].sys) - (l0[k].user + l0[k].sys)); } }
     gfx_mt_leave();
     return f;
+}
+NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h) {
+    if (test_work_ms() > 0) { uint64_t from = atomic_exchange(&g_test_work_from, 0); if (from) sleep_until_ns(from + (uint64_t)test_work_ms() * 1000000ull); }
+    uint64_t tr = trace_now();
+    gfx_enter();
+    ((queue_t *)q)->submits++;
+    sub_exec(n, (const uint64_t *)h);
+    gfx_leave();
+    trace_end(TR_SUBMIT, tr, (uint64_t)n, mtl_last_fence());
 }

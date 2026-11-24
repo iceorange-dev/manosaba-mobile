@@ -4,7 +4,7 @@
 // modulo 256; a range that a GPU write of a submission still running reaches is not copied; a range made unreadable after its pool was registered
 // drops that copy and the process goes on (on this thread and on the workers that copy in parts; without the fault guard it ends with SIGBUS);
 // lookups alternating between two copies each find their own (6, plan item 225); the copies of a run share one fault guard, and a copy after a fault
-// is made too (5; -DDM_TEST_US_GUARD_EACH, a guard for every copy: 1 fails), also in the submit call's capture (7).
+// is made too (5; -DDM_TEST_US_GUARD_EACH, a guard for every copy: 1 fails).
 #include "../nvn/nvn_mtl.m"
 void *front_metal_layer(void) { return NULL; }
 module_t *module_of(const void *p) { (void)p; return NULL; }
@@ -145,23 +145,5 @@ int main(void){@autoreleasepool{setvbuf(stdout,NULL,_IONBF,0); mtl_init(); crash
         EXPECT("6. a range past the second copy's end: none",0,us_find(u+0x8000+200,256)!=NULL);
         EXPECT("6. a range between the copies: none",0,us_find(u+0x4000,16)!=NULL);
         mtl_sub_commit(); mtl_finish();
-    }
-    // 7. The submit call's capture (the game's thread, DM_NVN_XLAT): three blocks, the middle one unreadable: it is left to be read live, the
-    //    others are taken, the one after the fault too, under one guard and one after the fault
-    {
-        g_us.on=1; size_t pg=(size_t)getpagesize(), big=1u<<20; uint8_t *bm; if (posix_memalign((void **)&bm,pg,big)) abort(); memset(bm,0x3c,big); mtl_pool_add(bm,big);
-        uint64_t b=(uint64_t)(uintptr_t)bm; chain c=chain_new(); bind_ubo(&c,b,256); bind_ubo(&c,b+0x10000,256); bind_ubo(&c,b+0x20000,256); emit(&c,OP_END,NULL,0);
-        uint64_t f0=g_us.faults, j0=g_us.jumps, hh=(uint64_t)c.p;
-        mprotect((void *)(uintptr_t)(b+0x10000),pg,PROT_NONE);
-        mtl_cap *cp=mtl_sub_capture(&hh,1,1);
-        mprotect((void *)(uintptr_t)(b+0x10000),pg,PROT_READ|PROT_WRITE);
-        int ok0=0, ok2=0, live1=0;
-        for (int i=0;i<cp->nr;i++) { if (cp->r[i].lo==b) ok0=cp->off[i]!=UINT64_MAX&&cp->data[cp->off[i]]==0x3c; if (cp->r[i].lo==b+0x10000) live1=cp->off[i]==UINT64_MAX;
-                                     if (cp->r[i].lo==b+0x20000) ok2=cp->off[i]!=UINT64_MAX&&cp->data[cp->off[i]+255]==0x3c; }
-        EXPECT("7. capture: one fault caught",1,g_us.faults-f0);
-        EXPECT("7. capture: the unreadable block is read live at the replay",1,live1);
-        EXPECT("7. capture: the blocks before and after it are taken",1,ok0&&ok2);
-        EXPECT("7. capture: one guard for the run and one after the fault",2,g_us.jumps-j0);
-        mtl_cap_free(cp);
     }
     printf("== %d checks, %d failed ==\n",count,fail); return fail!=0;}}

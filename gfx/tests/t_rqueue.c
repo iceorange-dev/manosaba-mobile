@@ -1,6 +1,5 @@
-// The queue's contract before NVN translation moves to a thread of its own (plan item 61a; the cases of LASRecomp hjqcan c404f1d
-// tools/test_render_queue.c, MIT, written anew for this replay: there they run against a render queue, here against the submit as it is now, so a
-// translation thread has to keep them). Through the public NVN calls:
+// The queue's contract (plan item 61a; the cases of LASRecomp hjqcan c404f1d tools/test_render_queue.c, MIT, written anew for this replay: there
+// they run against a render queue, here against the submit call). Through the public NVN calls:
 //   nested lists kept: a parent calls a child recorded in game memory (an event +1 and a fence) and a child that overflows into a host segment
 //   (three events +10, two of them in the segment); both command buffer objects are finalized and used again for lists that add 1000 (never
 //   submitted), the second also overflowing into a host segment, and the child's control memory is written over (the SDK copies control data at
@@ -12,7 +11,6 @@
 //   the four wait results: ALREADY_SIGNALED 0, CONDITION_SATISFIED 1 (a wait released by another thread), TIMEOUT_EXPIRED 2, FAILED 3
 //   an old fence past a ring: after 4,097 later submissions (MacNativeGames' fence ring has 4,096 entries) the first queue fence is still
 //   ALREADY_SIGNALED, and the same sync fenced again on a held submission holds the new fence and times out
-// Also run with the translation thread (DM_NVN_XLAT=1): fences read through fence_of / last_fence, which resolve a submission's token
 // Completion is held only after QueueFinish: the submit waits for one of the four occlusion-count buffers (nvn_mtl.m g_vis_ring), so five
 // submissions not done stop the fifth. Built as t_nvn (make -C gfx/tests t_rqueue). The nested fence given the last submission's fence (-DDM_TEST_FENCE_SYNC_LAST): 5 fail.
 #include "../nvn/hle_nvn.c"
@@ -40,14 +38,8 @@ static void begin(NVNcommandBuffer *c, ptrdiff_t off, size_t n) {   // a fresh c
     P(nvnCommandBufferInitialize)(c, &dev); P(nvnCommandBufferAddCommandMemory)(c, &pool, off, n); P(nvnCommandBufferBeginRecording)(c);
 }
 static void add(NVNcommandBuffer *c, uint32_t v) { P(nvnCommandBufferSignalEvent)(c, &ev, NVN_EVENT_SIGNAL_MODE_ADD, NVN_EVENT_SIGNAL_LOCATION_BOTTOM, 0, v); }
-// A sync's Metal fence: with the translation thread (DM_NVN_XLAT=1, plan item 61) a token is the number of a queued submission, resolved once
-// that submission has been translated; the newest submission's Metal fence likewise
-static uint64_t fence_of(const NVNsync *s) {
-    uint64_t f = 0; if (!sync_fence_load((const sync_t *)s, &f)) return 0;
-    if (f & SYNC_TOKEN) { uint64_t m = 0; return x_token_fence(f & ~SYNC_TOKEN, 5000000000ull, &m) ? m : 0; }
-    return f;
-}
-static uint64_t last_fence(void) { if (!xlat_on()) return mtl_last_fence(); uint64_t m = 0; return x_token_fence(x_token(), 5000000000ull, &m) ? m : 0; }
+static uint64_t fence_of(const NVNsync *s) { uint64_t f = 0; return sync_fence_load((const sync_t *)s, &f) ? f : 0; }   // a sync's Metal fence
+static uint64_t last_fence(void) { return mtl_last_fence(); }
 static int wait_held(uint64_t f) {   // until the GPU has completed up to f (completion held: the done fence stays)
     for (int i = 0; i < 5000; i++) { if (mtl_test_done_to(0) >= f) return 1; usleep(1000); }
     return 0;

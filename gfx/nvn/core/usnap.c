@@ -144,22 +144,6 @@ void us_copy_all(void) {
     g_us.par_n++;   // nvn_be_parallel returns when every part is done
     nvn_be_parallel(US_PAR, us_copy_part, cut);
 }
-void us_cap_copy(int nr, const us_rng *r, uint64_t *off, uint8_t *data) {
-    pthread_once(&g_us_hook, us_hook_once);
-    volatile int i = 0;   // one guard for the run (us_copy_range)
-    for (;;) {
-        atomic_fetch_add_explicit(&g_us.jumps, 1, memory_order_relaxed);
-        if (!sigsetjmp(t_usg.jb, 1)) {
-            for (; i < nr; i++) {
-                if (off[i] == UINT64_MAX) continue;
-                t_usg.lo = r[i].lo; t_usg.hi = r[i].hi; t_usg.armed = 1;
-                memcpy(data + off[i], (const void *)(uintptr_t)r[i].lo, (size_t)(r[i].hi - r[i].lo)); t_usg.armed = 0;
-            }
-            break;
-        }
-        off[i] = UINT64_MAX; atomic_fetch_add(&g_us.faults, 1); i++;   // not readable: read live at the replay
-    }
-}
 void us_snapshot(const uint64_t *h, int n) {
     if (!us_on() && g_bh_seen) for (int i = 0; i < n; i++) us_collect((const uint8_t *)(uintptr_t)h[i], 0, 0);
     if (!us_on() || !n) return;
@@ -221,3 +205,4 @@ void us_report(uint64_t f) {
          (unsigned long long)(c[4] - p[4]), (unsigned long long)(c[5] - p[5]), (unsigned long long)(c[7] - p[7]));
     memcpy(p, c, sizeof p);
 }
+void mtl_sub_snapshot(const uint64_t *h, int n) { g_us.n = 0; us_snapshot(h, n); }   // the submission's start, after mtl_sub_begin and before the replay (hle/lifecycle.inc)

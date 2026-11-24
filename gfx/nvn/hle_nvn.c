@@ -33,10 +33,6 @@
 #include <assert.h>
 #include <stdatomic.h>
 
-// The translation thread (plan item 61, with nvnQueueSubmitCommands below)
-static int xlat_on(void); static void x_drain(void); static uint64_t x_token(void);
-static int x_token_fence(uint64_t k, uint64_t timeout_ns, uint64_t *fence);
-
 #include "hle/slots.inc"
 #include "hle/device.inc"
 #include "hle/pools.inc"
@@ -49,7 +45,6 @@ static int x_token_fence(uint64_t k, uint64_t timeout_ns, uint64_t *fence);
 #include "hle/render_cmds.inc"
 #include "hle/state_objs.inc"
 #include "hle/lifecycle.inc"
-#include "hle/xlat.inc"
 #include "hle/nops.inc"
 #include "hle/window.inc"
 #include "hle/timing.inc"

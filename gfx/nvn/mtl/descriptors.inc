@@ -111,7 +111,7 @@ static inline int treg_kind(const tex_t *t) { return (t->has_layout && t->mem) |
 static inline uint64_t treg_stamp(int kind) { return !kind ? 0 : check_once() ? g_sub_serial : nvn_dirty_now(); }
 // Views by their base texture and what they make of it (plan item 271): Tears of the Kingdom initializes its passes' texture objects again every frame,
 // each a new serial on the same storage, so its IDs' views were made again each time on the same MTLTexture (about 35 a frame standing on Great Sky
-// Island, 3 % of the translation thread in newTextureViewWithPixelFormat). A view is taken from here when the same base texture is viewed the same way;
+// Island, 3 % of the replay's thread in newTextureViewWithPixelFormat). A view is taken from here when the same base texture is viewed the same way;
 // an entry is let go VIEW_IDLE submissions after its last use (a view keeps its base texture, so a retired one goes soon after; under g_rmu)
 typedef struct { uint64_t base; uint32_t pf, tt, l0, nl, s0, ns; uint8_t sw[4], tswz, pad[7]; } view_key;
 typedef struct { void *view; uint64_t last; } view_ent;   // view: CFBridgingRetain'd

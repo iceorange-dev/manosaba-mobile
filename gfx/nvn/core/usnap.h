@@ -65,8 +65,7 @@ int us_gw_reaches(uint64_t lo, uint64_t hi, int ng, uint64_t gw_max);   // Of th
 void us_reserve(int n);                    // Room for n copies in g_us.ent
 us_ent *us_add(uint64_t lo, uint64_t hi);   // The next copy, its place in the arena at the same offset modulo 256 as the original (the bytes not copied yet)
 void us_copy_all(void);                     // Fill every copy in g_us.ent, under the fault guard; a copy whose source faults is dropped
-void us_snapshot(const uint64_t *h, int n); // Submission start (mtl_sub_snapshot without a capture): collect, merge, copy
-void us_cap_copy(int nr, const us_rng *r, uint64_t *off, uint8_t *data);   // The capture's copies of r[i] to data + off[i] under the fault guard; one that faults gets off UINT64_MAX
+void us_snapshot(const uint64_t *h, int n); // Submission start (mtl_sub_snapshot): collect, merge, copy
 static inline const us_ent *us_find(uint64_t a, uint64_t n) {   // The live copy holding all of [a, a + n), or NULL
     if (!g_us.n || !a) return NULL;
     if (!n) n = 1;

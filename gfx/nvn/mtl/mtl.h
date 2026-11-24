@@ -84,7 +84,6 @@
 #include "../core/pend.h"
 #include "../core/frame.h"
 #include "../core/live.h"
-#include "../core/capture.h"
 #include "../core/guard.h"
 #include "../nvn_quad_strip.h"
 #include "../core/upd.h"

@@ -21,7 +21,7 @@ NVN(nvnQueueInitialize, NVNboolean, NVNqueue *q, const NVNqueueBuilder *b) {
     *(queue_t *)q = (queue_t){MAGIC('Q', 'U', 'E', 'U'), ((const queue_builder_t *)b)->dev, 0};
     OLOG("QueueInitialize %p", (void *)q); return 1;
 }
-NVN(nvnQueueFinalize, void, NVNqueue *q) { x_drain(); ((queue_t *)q)->magic = 0; }
+NVN(nvnQueueFinalize, void, NVNqueue *q) { ((queue_t *)q)->magic = 0; }
 NVN(nvnQueueGetError, NVNqueueGetErrorResult, NVNqueue *q, NVNqueueErrorInfo *info) {
     (void)q; if (info) memset(info, 0, sizeof *info); return NVN_QUEUE_GET_ERROR_RESULT_GPU_NO_ERROR;
 }
@@ -31,5 +31,5 @@ NVN(nvnQueueFlush, void, NVNqueue *q) { (void)q; }
 // false, as the SDK (dr3-mobile read it there; GirlNet's P5R branch the same; plan item 64d)
 NVN(nvnQueueWaitSync, NVNboolean, NVNqueue *q, const NVNsync *s) { (void)q; uint64_t f; return s && sync_fence_load((const sync_t *)s, &f); }
 NVN(nvnQueueFinish, void, NVNqueue *q) {
-    (void)q; x_drain(); gfx_mt_enter("QueueFinish"); mtl_finish(); mtl_wb_fence_done(); gfx_mt_leave(); }
+    (void)q; gfx_mt_enter("QueueFinish"); mtl_finish(); mtl_wb_fence_done(); gfx_mt_leave(); }
 

@@ -11,9 +11,9 @@ part below goes with its tests, its switches' rows and its records, after a mano
 has run on a phone yet: an iPhone and an Android run are owed, and come before the parts that change what the phones run (the code
 options' new product, the wide picture). The parts that went first were off for manosaba on every platform, by its profile or a switch.
 
-- 328 · shared code only that game reached, by its gate, in this order: the translation thread; the RomFS overlay and RomFS parts; the code
-  options (a new rewriter stamp: the product rebuilt, and the stale comment of `games/manosaba/rules.py` with it); the wide picture and the
-  widening (the settings' "Wide screen" switch goes with them).
+- 328 · shared code only that game reached, by its gate, in this order: the RomFS overlay and RomFS parts; the code options (a new rewriter
+  stamp: the product rebuilt, and the stale comment of `games/manosaba/rules.py` with it); the wide picture and the widening (the settings'
+  "Wide screen" switch goes with them).
 - 329 · takeovers the game's modules bind but no run has used (audren, 4 of its 12 names; motion, friends, net, swkbd) and the lists it has
   none of (`fout.tsv`, `border_msl.txt`, `lodbias_msl.txt`): kept until a longer run and a phone show them unused.
 - 330 · the documents: DEVELOPMENT.md and the READMEs' tables after 328; the open items below that came from the other game's work (271,
@@ -33,7 +33,7 @@ options' new product, the wide picture). The parts that went first were off for 
 
 ## The Mac alone
 
-- 271 · CPU per draw: what the profile still shows is small (pool lookups 6.4 % of the translation thread, the snapshots' lookup 3.7 %). Not
+- 271 · CPU per draw: what the profile still shows is small (pool lookups 6.4 % of the replay, the snapshots' lookup 3.7 %). Not
   taken so far: 4ppp44 cb21bec / d0d3cb1 (argument blocks reused across a submission's passes, the driver segment filled only where read).
 - 220 · MetalFX frame interpolation: with no motion target the camera's motion would come from the depth and two frames' matrices, and moving
   things would ghost.

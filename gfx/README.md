@@ -103,8 +103,7 @@ Binding conventions used by the translation:
 | `nvn/hle/cmdbuf.inc` | Command buffers: recording into the game's command memory, CPU-visible side effects at submit |
 | `nvn/hle/render_cmds.inc` | Render commands, recorded in the payload format of `nvn_obj.h` |
 | `nvn/hle/state_objs.inc` | State objects, packed in place |
-| `nvn/hle/lifecycle.inc` | Suspend and resume (`dm_gfx_suspend`) |
-| `nvn/hle/xlat.inc` | The translation thread (plan item 61, `DM_NVN_XLAT=1`) and `nvnQueueSubmitCommands` |
+| `nvn/hle/lifecycle.inc` | Suspend and resume (`dm_gfx_suspend`), and `nvnQueueSubmitCommands`: the replay of a submission |
 | `nvn/hle/nops.inc` | Commands with nothing to do here (counted), depth bounds, the no-op list (`g_nops`) |
 | `nvn/hle/window.inc` | Windows: building them, their crop and present interval, acquiring their images |
 | `nvn/hle/timing.inc` | Timing instrumentation: `DM_NVN_TSV`, the fps / GPU line, thermal attribution, the summaries every 300 frames |
@@ -166,7 +165,6 @@ Binding conventions used by the translation:
 | `nvn/core/prog.c`, `nvn/core/prog.h` | The program bound per stage (prog_bind: per-stage keys combined into a composite program) |
 | `nvn/core/live.c`, `nvn/core/live.h` | The texture living at a storage address (a finalized registration follows it), and the texture objects' host copies that recorded commands use |
 | `nvn/core/pend.c`, `nvn/core/pend.h` | Buffer writes encoded but not executed on the GPU yet (copies, inline updates), and what a range reads as at a point of the replay |
-| `nvn/core/capture.c`, `nvn/core/capture.h` | The submit call's view for the translation thread (plan item 61): deferred handles, FenceSync tokens, the uniform bytes; the submission's uniform snapshot |
 | `nvn/core/frame.c`, `nvn/core/frame.h` | Measurements by frame: boot instrumentation (DM_BOOTPROF), the GPU time as the union of command buffer spans, DM_NVN_UB |
 | `nvn/core/upd.c`, `nvn/core/upd.h` | Inline uniform updates without ending the render pass: the update log, private copies of the ranges they reach, each of as many bytes as its reader reads (the reflection's `crn`) |
 | `nvn/core/usnap.c`, `nvn/core/usnap.h` | Uniform snapshots: each submission's copies of the uniform ranges it binds; deferred binding handles read once a submission |

@@ -2,7 +2,7 @@
 // A list with a state command, a draw, a call, a buffer copy and a jump: the backend handed the draws, the clear, the copy and the dispatch in
 // command order; a draw sees the op after it as the lookahead's start, and inside the called list the caller's next op on the return stack; the
 // state command applied to R, the backend told what changed (only that it is a state command when nothing did); the work counted. FenceSync:
-// the submission's fence, or for a sync the submit call fenced to its token that fence, while another token stays. An op run early is not handed
+// the submission's fence. An op run early is not handed
 // over and leaves the skip set; the replay passing a deferred group's P end clears its mark; hoisted ops never reached are dropped at the end of
 // the submission. A list that calls itself stops 64 lists deep. SetRenderTargets: new targets end the open pass; the same targets continue it,
 // not a pass opened for clears only nor with clears pending; another layer goes on in a layered pass; a waiting deferred group's Q ends the pass
@@ -14,7 +14,7 @@
 // open pass taken as the next pass's load action (-DDM_TEST_EXEC_CLEAR_IN_PASS, the other): 1 fails.
 #include "../nvn/core/exec.h"
 #include "../nvn/nvn_backend.h"
-#include "../nvn/core/capture.h"
+#include "../nvn/core/usnap.h"
 #include "../nvn/core/cond.h"
 #include "../nvn/core/defer.h"
 #include "../nvn/core/pass.h"
@@ -86,8 +86,8 @@ int main(void) {
     check("the work counted: two draws, a texture clear, a copy, a dispatch", 5, g_sub_work);
 
     // FenceSync, the ops run early, the deferred group's P end
-    static sync_t sa, sb, sc_; memset(g_len, 0, sizeof g_len); g_cur = 0;
-    sync_t *pa = &sa, *pb = &sb, *pc = &sc_;
+    static sync_t sa; memset(g_len, 0, sizeof g_len); g_cur = 0;
+    sync_t *pa = &sa;
     rec(OP_FENCE_SYNC, &pa, 8); const uint8_t *cl = rec(OP_CLEAR_TEX, &ct, sizeof ct); const uint8_t *pe = rec(OP_SET_RT, &(p_set_rt){0}, sizeof(p_set_rt)); rec(OP_END, NULL, 0);
     g_hoist_skip[0] = cl; g_hoist_n = 1;
     g_defer_slots[1].active = 1; g_defer_slots[1].in_p = 1; g_defer_slots[1].p_end_op = pe; g_defer_pend = pe;
@@ -96,11 +96,6 @@ int main(void) {
     check("an op run early: not handed over, out of the skip set", 1, !strcmp(joined(), "flush") && g_hoist_n == 0);
     check("passing a deferred group's P end: its mark cleared", 1, !g_defer_slots[1].in_p && !g_defer_pend);
     memset(&g_defer_slots[1], 0, sizeof g_defer_slots[1]);
-    static mtl_cap cap; cap.token = 7; g_cap_cur = &cap;
-    sync_token_store(&sb, 7); sync_token_store(&sc_, 8);
-    memset(g_len, 0, sizeof g_len); rec(OP_FENCE_SYNC, &pb, 8); rec(OP_FENCE_SYNC, &pc, 8); rec(OP_END, NULL, 0);
-    nvn_exec(g_mem[0]); g_cap_cur = NULL;
-    check("the submit call fenced it to this submission's token: the fence; another token stays", 1, sb.fence == 42 && sc_.fence == (8 | SYNC_TOKEN));
 
     // hoisted ops never reached; a call cycle
     memset(g_len, 0, sizeof g_len); rec(OP_END, NULL, 0); g_hoist_skip[0] = g_mem[1]; g_hoist_n = 1;

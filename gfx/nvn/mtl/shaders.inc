@@ -150,7 +150,7 @@ static FILE *pso_user_file(void) {
     return g_pso_user;
 }
 // The line is written on a serial queue of its own (plan item 246, after AnySwitch c483c04, MIT): the first one read the seed and the player's list
-// (6,365 rows for Tears of the Kingdom) into a set, and every new one flushed the file, on the submit / translation thread
+// (6,365 rows for Tears of the Kingdom) into a set, and every new one flushed the file, on the submitting thread
 static dispatch_queue_t pso_user_queue(void) {
     static dispatch_queue_t q; static dispatch_once_t once;
     dispatch_once(&once, ^{ q = dispatch_queue_create("dm.pso_user", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0)); });

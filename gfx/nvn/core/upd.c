@@ -50,7 +50,7 @@ void ul_apply(const upd_list *l, uint64_t lo, uint8_t *out, uint64_t n, uint64_t
     g_ren.ul_calls++; g_ren.ul_walk += (uint64_t)(a - i0); g_ren.ul_applied += (uint64_t)k;
     // The walk went from the newest start down, and updates of one start sit in the log oldest first: reversed, the list is runs already in order,
     // which the insertion sort below passes in about k steps. Tears of the Kingdom's frame applies ~90 updates of a few ranges per private copy, ~360
-    // copies a frame: sorted from the walk's order that was ~4,000 moves a copy, 18 % of the translation thread on the M5 (plan item 225)
+    // copies a frame: sorted from the walk's order that was ~4,000 moves a copy, 18 % of the replay's thread on the M5 (plan item 225)
 #ifndef DM_TEST_UL_NO_REVERSE   // negative control of t_nvn only: sorted from the walk's order (the result is the same, the time is not)
     for (int i = 0, j = k - 1; i < j; i++, j--) { int t = g_upd_idx[i]; g_upd_idx[i] = g_upd_idx[j]; g_upd_idx[j] = t; }
 #endif

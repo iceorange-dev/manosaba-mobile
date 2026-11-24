@@ -3,7 +3,7 @@
 NVN(nvnProgramInitialize, NVNboolean, NVNprogram *p, NVNdevice *d) {
     (void)d; memset(p, 0, sizeof(prog_t)); ((prog_t *)p)->magic = MAGIC('P', 'R', 'O', 'G'); return 1;
 }
-NVN(nvnProgramFinalize, void, NVNprogram *p) { x_drain(); mtl_prog_release((prog_t *)p); ((prog_t *)p)->magic = 0; }
+NVN(nvnProgramFinalize, void, NVNprogram *p) { mtl_prog_release((prog_t *)p); ((prog_t *)p)->magic = 0; }
 // Shader key = the first 8 bytes of sha256(the 0x880-byte control section + the code area), the code area being the length at control +0x704 read
 // from data. The replay layer looks libraries up by it (16 hex digits); the offline tools name captures by it (shmap_from_capture.py, dmsh_build.py,
 // engines/unity/shader_extract.py). The control section alone does not identify a shader: it holds sizes and resource counts but no hash of the
@@ -94,7 +94,6 @@ static uint8_t shader_stage(const NVNshaderData *sd) {
 }
 NVN(nvnProgramSetShaders, NVNboolean, NVNprogram *p, int n, const NVNshaderData *sd) {
     prog_t *o = (prog_t *)p;
-    if (o->serial) x_drain();   // its old shaders may still be in a queued replay (plan item 61)
     if (n < 0 || n > 6) { LOG("[red] ProgramSetShaders: stage count %d", n); return 0; }
     for (int i = 0; i < n; i++) shdump(&sd[i]);
     mtl_prog_release(o); o->nstage = n; o->serial = nvn_new_serial();

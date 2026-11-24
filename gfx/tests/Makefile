@@ -33,8 +33,6 @@ t_d16clear: t_d16clear.m ../nvn/nvn_depth_clear.h
 CORE_H=$(wildcard ../nvn/core/*.h)
 CORE_C=$(sort $(wildcard ../nvn/core/*.c)) core_fakes.c $(CRASH)
 CORE_DEP=$(CORE_C) $(CORE_H) core_test.h ../nvn/nvn_obj.h ../nvn/nvn_backend.h ../nvn/nvn_refl.h ../../host/dm.h
-t_core_capture: t_core_capture.c $(CORE_DEP)
-	clang $(CFLAGS) -Werror -o $@ t_core_capture.c $(CORE_C)
 t_core_cond: t_core_cond.c $(CORE_DEP)
 	clang $(CFLAGS) -Werror -o $@ t_core_cond.c $(CORE_C)
 t_core_defer: t_core_defer.c $(CORE_DEP)
@@ -255,8 +253,6 @@ t_pools: t_pools.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_pools.m $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
 t_blkunp: t_blkunp.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_blkunp.m $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
-t_xlat: t_xlat.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -o $@ t_xlat.m $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
 t_mtlguard: t_mtlguard.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_mtlguard.m $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
 t_bindfreeze: t_bindfreeze.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
@@ -346,7 +342,6 @@ run: \
 	t_border \
 	t_chunk \
 	t_copy_pitch \
-	t_core_capture \
 	t_core_cond \
 	t_core_defer \
 	t_core_exec \
@@ -415,7 +410,6 @@ run: \
 	t_nvn64d \
 	t_pools \
 	t_blkunp \
-	t_xlat \
 	t_mtlguard \
 	t_fuse_check \
 	t_gputime \
@@ -518,7 +512,6 @@ run: \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' t_quad_strip_abc.log)" -ne 6 ]; then \
 	   cat t_quad_strip_abc.log; echo "t_quad_strip_abc: unexpected negative-control result ($$status)"; exit 1; \
 	 else echo 't_quad_strip_abc: a plain quad'"'"'s order in a strip fails 6, as expected'; fi
-	./t_core_capture
 	./t_core_cond
 	./t_core_defer
 	./t_core_exec
@@ -621,10 +614,7 @@ run: \
 	MTL_DEBUG_LAYER=1 ./t_dbounds
 	MTL_DEBUG_LAYER=1 ./t_nvn64d
 	./t_pools
-	MTL_DEBUG_LAYER=1 ./t_xlat
 	MTL_DEBUG_LAYER=1 ./t_blkunp
-	DM_NVN_XLAT=1 ./t_rqueue   # the render-queue cases with the translation thread (plan item 61)
-	DM_NVN_XLAT=1 ./t_nvn > t_nvn_xlat.log 2>&1 && tail -1 t_nvn_xlat.log || { grep "✗" t_nvn_xlat.log; tail -1 t_nvn_xlat.log; exit 1; }
 	MTL_DEBUG_LAYER=1 ./t_mtlguard
 	MTL_DEBUG_LAYER=1 ./t_flushtexels
 	MTL_DEBUG_LAYER=1 ./t_fout

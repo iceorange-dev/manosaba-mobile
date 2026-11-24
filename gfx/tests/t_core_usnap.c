@@ -5,7 +5,7 @@
 // pools apart; the snapshot copies each merged range at the same offset modulo 256 with its bytes, leaves a range in no pool and one a running GPU
 // write reaches (and forgets writes completed); lookups find the copy holding a range, none across two, the last copy found only when it holds
 // the range (alternating lookups); a GPU write drops the copies it reaches (noted once for repeats); a source made unreadable drops its copy and
-// the copies after it are made (one guard for the run, one after the fault), in parts over the workers too; the capture's copies the same;
+// the copies after it are made (one guard for the run, one after the fault), in parts over the workers too;
 // DM_NVN_UBO_SNAPSHOT=0 copies nothing, yet the walk still reads deferred handles. A range that a running submission's renamed updates were written
 // to (plan item 301e3) is copied with their bytes laid over memory, one another write reaches still not, a completed write not laid over a newer
 // byte of the game, nothing copied when the pending-write table overflowed; a range noted both ways counts as written otherwise.
@@ -154,9 +154,6 @@ int main(void) {
       int p0 = g_par_calls; uint64_t pn = g_us.par_n; f0 = g_us.faults; submit();
       check("over 256 KiB: copied in parts through the workers", 1, g_par_calls - p0 == 1 && g_us.par_n - pn == 1);
       check("... the fault caught there too, the other six copies made", 1, g_us.faults - f0 == 1 && g_us.n == 7 && !us_find(A(1, 0x10000), 8) && us_find(A(1, 0xe0000), 8));
-      us_rng r[3] = {{A(1, 0x100), A(1, 0x140)}, {A(1, 0x10000), A(1, 0x10040)}, {A(1, 0x200), A(1, 0x240)}}; uint64_t off[3] = {0, 64, 128}; uint8_t data[192];
-      f0 = g_us.faults; us_cap_copy(3, r, off, data);
-      check("the capture's copies: the unreadable one marked, the others copied", 1, g_us.faults - f0 == 1 && off[1] == UINT64_MAX && !memcmp(data, g_pool[1] + 0x100, 64) && !memcmp(data + 128, g_pool[1] + 0x200, 64));
       mprotect(bad, 4096, PROT_READ | PROT_WRITE); }
 
     // off

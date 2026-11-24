@@ -179,7 +179,7 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
             void *rb_ = NULL; uint64_t rg_ = upd_any() ? upd_shadow(u->addr, u->size, &rb_, b->crn) : 0;   // logged updates over it: its private copy, of what the shader reads (the reflection's crn, plan item 271)
             const us_ent *sc = rg_ ? NULL : us_find(u->addr, u->size);   // contents as of the submit call
             // Its place in a memory pool is looked up only when neither stands for it (plan item 271: the lookup, for every uniform binding of every
-            // stage encoded, was 3.6 % of the translation thread on Great Sky Island, and nearly every binding there has a copy or a snapshot)
+            // stage encoded, was 3.6 % of the replay's thread on Great Sky Island, and nearly every binding there has a copy or a snapshot)
 #ifndef DM_TEST_CB_ALWAYS_POOL   // negative control of t_usnap only: looked up for every binding, as before
             int in_pool = !rg_ && !sc;
 #else

@@ -1,5 +1,5 @@
-// gfx/nvn/core/guard.h: reads of guest memory the game may have taken back since it submitted the work that reads it (plan item 290). With a
-// translation thread the replay runs after the submit call, and a texture is uploaded at its first use there: if the game unmapped the texture's
+// gfx/nvn/core/guard.h: reads of guest memory the game may have taken back since it submitted the work that reads it (plan item 290). When the
+// replay ran on a thread of its own, after the submit call, a texture was uploaded at its first use there: if the game unmapped the texture's
 // storage in between (MapMemory / UnmapMemory, UnmapPhysicalMemory), the read faulted and the process died (MacNativeGames f3bb714, MIT: SIGBUS in
 // the deswizzle, Tears of the Kingdom's Depths; written anew here). Such reads run under guard_run, and the backend drops what it was making. Checked
 // without a GPU by gfx/tests/t_core_guard.c; with the Metal backend by t_texgone.m
