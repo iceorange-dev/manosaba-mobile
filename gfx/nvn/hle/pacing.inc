@@ -86,7 +86,6 @@ __attribute__((weak)) void dm_sdk_test_present(uint64_t frame) { (void)frame; } 
 NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
     uint64_t tr = trace_now();
     dm_sdk_test_present(g_frame);
-    NVN_BLOCKING();
     (void)q; win_t *o = (win_t *)w; o->presents++;
     static uint64_t prev_in, prev_out, prev_pass, prev_draw;
     // Loading screen on first entering a run: if the background pipeline warm-up has not finished, wait for it here (the loading screen stays a bit longer), so that after entering the run no pipelines are compiled on the fly on the submit thread. When warm-up finished long ago this passes with a single check

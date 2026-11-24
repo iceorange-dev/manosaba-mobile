@@ -93,12 +93,8 @@ typedef struct thr {
     uint64_t hstk_top;         // Top of this thread's host stack (hstack.S; dm_thread_enter writes it), 0 = none (the main thread, DM_HSTACK=0)
     uint64_t stack_bot, stack_low;   // Guest stack: bottom (the MapMemory mapping holding its top, 0 = not known) and the lowest sp seen at an svc entry
     int stack_said;            // the low-stack line was logged
-    int cur_core;              // Virtual core held while running guest code (-1 while blocked / not started; only with virtual cores, see below)
-    int host_work;             // Created for host work (dm_guest_thread_spawn: the audio renderer) that waits on host primitives: holds no virtual core
+    int host_work;             // Created for host work (dm_guest_thread_spawn: the audio renderer) that waits on host primitives (the thread lists name it so)
     int next_host;             // This thread is about to create a host-work thread (svc CreateThread inside nn::os::CreateThread takes it)
-    int preempt;               // A higher-priority thread waits for this thread's core: give it up at the next svc
-    uint64_t cseq; struct thr *cnext;   // Core wait chain
-    uint64_t ncpu, cw_n, cw_ns, ncpu_seen, cw_n_seen, cw_ns_seen; int cpu_ever;   // DM_SCHED_STATS: 0x10 calls, waits for a core and their time (plan item 315f)
     sleep_run srun;            // DM_SLEEP_STATS: its last short sleep (sleepstats.h, plan item 316)
 } thr_t;
 static thr_t *g_all;
@@ -154,107 +150,23 @@ static thr_t *pick(int kind, uint64_t a) {
     }
     return b;
 }
-// DM_SCHED_STATS=1: waits by kind, wake-to-run latency, the time taking a core back, system calls by number; a line every 5 s (plan item 255)
+// DM_SCHED_STATS=1: waits by kind, wake-to-run latency, system calls by number; a line every 5 s (plan item 255)
 static int sched_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_SCHED_STATS"); v = e && atoi(e) > 0; } return v; }
 static sched_stats g_sched;
 static void wake(thr_t *t, int64_t res) { wait_unlink(t); t->wkind = 0; t->woke = 1; t->wres = res; if (sched_on()) t->woke_ns = now_ns(); pthread_cond_signal(&t->cv); }
-// ---------- Virtual cores ----------
-// Horizon runs at most one thread per core, and Tears of the Kingdom keys per-core data (allocators, job queues, the render job output blocks) by
-// GetCurrentProcessorNumber without locks: its main thread and ModuleSystemWorker0 share core 0. With every guest thread a free pthread, two threads
-// of one core ran at once and wrote the same per-core data: objects vanished every other frame, models were torn (Zelda's cloak, the cave walls).
-// With game.json virtual_cores, a guest thread holds one of the three application cores while it runs guest code, gives it up where Horizon would
-// switch threads (waits, sleep, yield, exit, host services that wait: dm_core_away) and the freed core goes to the best waiting thread (lowest
-// priority value, then first come); a thread that a higher-priority waiter wants gives its core up at its next svc. Ported from MacNativeGames
-// (ly05010419/MacNativeGames runtime/threads.c, MIT). DM_FREE_CORES=1 turns it off
-#define NCORE 3
-static thr_t *g_core_owner[NCORE];
-static thr_t *g_core_wait;
-static int cores_enabled(void) { static int on = -1; if (on < 0) on = dm_game.virtual_cores && !getenv("DM_FREE_CORES"); return on; }
-static int core_allowed(const thr_t *t, int c) { return (int)(t->mask >> c & 1); }
-// A waiter that may use only cores another thread holds takes one of them when its owner may run on a free core: the owner moves there, as
-// Horizon's scheduler moves a thread to an idle core it may use when the core it runs on has another thread to run (KScheduler's migration of
-// suggested threads). A virtual core is only an entitlement here, so the move is bookkeeping: the owner keeps running, holding the free core.
-// Without it a thread allowed on one core only (the main thread: core 0) waited behind a thread that could have run elsewhere while other cores
-// stood idle (MacNativeGames 3a48acf, MIT, written anew: Pokopia's frame loop stopped; Tears of the Kingdom here: core takes of about 10 ms in
-// most 5-second spans with DM_SCHED_STATS=1). Holding G; 1 when w got a core. t_vcores
-static uint64_t g_core_migrations;
-uint64_t dm_core_migrations(void) { return g_core_migrations; }
-static int core_migrate(thr_t *w) {
-#ifdef DM_TEST_NO_MIGRATE   // negative control of t_vcores only: no move, as before
-    (void)w; return 0;
-#endif
-    for (int c = 0; c < NCORE; c++) {
-        thr_t *o = g_core_owner[c];
-        if (!o || o == w || !core_allowed(w, c)) continue;
-        for (int f = 0; f < NCORE; f++) {
-            if (f == c || g_core_owner[f] || !core_allowed(o, f)) continue;
-            o->cur_core = o->act = f; g_core_owner[f] = o;
-            for (thr_t **p = &g_core_wait; *p; p = &(*p)->cnext) if (*p == w) { *p = w->cnext; break; }
-            w->cnext = NULL; w->cur_core = w->act = c; g_core_owner[c] = w; pthread_cond_signal(&w->cv);
-            if (g_core_migrations++ < 4) LOG("virtual cores: thread %#x moved from core %d to idle core %d for thread %#x (priority %d, mask %#llx)",
-                                             o->handle, c, f, w->handle, w->prio, (unsigned long long)w->mask);
-            return 1;
-        }
-    }
-    return 0;
-}
-static void core_grant(int c) {   // holding G: give free core c to the best waiter
-    thr_t *b = NULL, **bp = NULL;
-    for (thr_t **p = &g_core_wait; *p; p = &(*p)->cnext)
-        if (core_allowed(*p, c) && (!b || (*p)->prio < b->prio || ((*p)->prio == b->prio && (*p)->cseq < b->cseq))) { b = *p; bp = p; }
-    if (!b) { for (thr_t *w = g_core_wait; w; w = w->cnext) if (core_migrate(w)) break; return; }   // no waiter may use c: an owner that may goes there
-    *bp = b->cnext; b->cnext = NULL; b->cur_core = b->act = c; g_core_owner[c] = b; pthread_cond_signal(&b->cv);
-}
-static void core_put(thr_t *t) {   // holding G
-    if (!t || t->cur_core < 0) return;
-    int c = t->cur_core; t->cur_core = -1; t->preempt = 0; g_core_owner[c] = NULL; core_grant(c);
-}
-static void core_take(thr_t *t) {   // holding G; waits until a core of t's mask is handed over
-    if (!cores_enabled() || !t || t->cur_core >= 0 || t->host_work) return;
-    if (!(t->mask & ((1u << NCORE) - 1))) die("thread %#x core mask %#llx has no application core", t->handle, (unsigned long long)t->mask);
-    int c = t->core >= 0 && t->core < NCORE && core_allowed(t, t->core) && !g_core_owner[t->core] ? t->core : -1;
-    for (int i = 0; c < 0 && i < NCORE; i++) if (core_allowed(t, i) && !g_core_owner[i]) c = i;
-    if (c >= 0) { t->cur_core = t->act = c; g_core_owner[c] = t; return; }
-    t->cseq = ++g_wseq; t->cnext = g_core_wait; g_core_wait = t;
-    if (core_migrate(t)) return;
-    for (int i = 0; i < NCORE; i++) if (core_allowed(t, i) && g_core_owner[i] && g_core_owner[i]->prio > t->prio) g_core_owner[i]->preempt = 1;
-    uint64_t w0 = sched_on() ? now_ns() : 0;
-    while (t->cur_core < 0) pthread_cond_wait(&t->cv, &G);
-    if (w0) { t->cw_n++; t->cw_ns += now_ns() - w0; }
-}
-// The next thread the calling thread creates runs host work (hle_guestthread.c): it holds no virtual core, since it waits on host primitives and
-// would keep its core for good (the audio renderer kept core 0 and the main thread never got it back)
+// The next thread the calling thread creates runs host work (hle_guestthread.c: the audio renderer); the thread lists name it so
 void dm_thread_next_host_work(void) { thr_t *t = g_keythr ? pthread_getspecific(g_keythr) : NULL; if (t) t->next_host = 1; }
-// Host services that wait for other threads, the GPU or the display give the core up around the wait (no host lock held while calling these)
-int dm_core_away(void) {
-    thr_t *t = g_keythr ? pthread_getspecific(g_keythr) : NULL; if (!t || t->cur_core < 0) return 0;
-    pthread_mutex_lock(&G); core_put(t); pthread_mutex_unlock(&G); return 1;
-}
-void dm_core_back(int *away) {
-    thr_t *t = g_keythr ? pthread_getspecific(g_keythr) : NULL; if (!*away || !t) return;
-    pthread_mutex_lock(&G); core_take(t); pthread_mutex_unlock(&G);
-}
-static void core_checkpoint(thr_t *t) {   // svc entry: a higher-priority thread waits for this core
-    if (!t || !t->preempt) return;
-    pthread_mutex_lock(&G); t->preempt = 0; core_put(t); core_take(t); pthread_mutex_unlock(&G);
-}
-// Suspend until woken or timed out (ns<0 infinite, 0 immediate timeout); returns wres or R_TIMEOUT. The core is given up while waiting
+// Suspend until woken or timed out (ns<0 infinite, 0 immediate timeout); returns wres or R_TIMEOUT
 static int64_t block_inner(thr_t *t, int kind, int64_t ns);
-static int64_t block_core(thr_t *t, int kind, int64_t ns) {
-    if (ns == 0 || t->cur_core < 0) return block_inner(t, kind, ns);
-    core_put(t); int64_t r = block_inner(t, kind, ns); core_take(t); return r;
-}
 static int64_t block(thr_t *t, int kind, int64_t ns) {   // Boot timeline: accumulated by wait kind (all threads) + the main thread listed separately
     if (sched_on() && ns != 0) {   // (holding G)
-        uint64_t a = now_ns(); int had = t->cur_core >= 0; t->woke_ns = 0;
-        if (had) core_put(t);
+        uint64_t a = now_ns(); t->woke_ns = 0;
         int64_t r = block_inner(t, kind, ns); uint64_t b = now_ns();
-        if (had) core_take(t);
-        sched_note(&g_sched, kind & 7, a, t->woke ? t->woke_ns : 0, b, had ? now_ns() : b);
+        sched_note(&g_sched, kind & 7, a, t->woke ? t->woke_ns : 0, b);
         return r;
     }
-    if (!g_flag.bootprof) return block_core(t, kind, ns);
-    uint64_t t0 = now_ns(); int64_t r = block_core(t, kind, ns); uint64_t d = now_ns() - t0;
+    if (!g_flag.bootprof) return block_inner(t, kind, ns);
+    uint64_t t0 = now_ns(); int64_t r = block_inner(t, kind, ns); uint64_t d = now_ns() - t0;
     static const int id[] = {0, PROF_WAIT_LOCK, PROF_WAIT_CV, PROF_WAIT_ADDR, PROF_WAIT_SYNC};
     dm_prof_add(id[kind & 7], d, 0);
     if (t->handle == 0x1001) dm_prof_add(PROF_MAIN_WAIT, d, 0);
@@ -474,7 +386,6 @@ static void kt_dump(int last);   // the lock / condition variable trace (below s
 static void thread_publish_exit(thr_t *t) {
     t->exit_ns = now_ns();
     pthread_mutex_lock(&G);
-    core_put(t);
     t->exited = 1;
     wake_sync_waiters(t);
     pthread_setspecific(g_keythr, NULL);
@@ -492,7 +403,7 @@ static void *thread_main(void *p) {
     wp_thread_start();   // DM_WATCHPOINT (diag.c)
     guest_thread_init();
     t->tsd = dm_slot_base();   // (after guest_thread_init: on Android its first slot makes the block)
-    pthread_mutex_lock(&G); while (!t->started) pthread_cond_wait(&t->cv, &G); core_take(t); pthread_mutex_unlock(&G);
+    pthread_mutex_lock(&G); while (!t->started) pthread_cond_wait(&t->cv, &G); pthread_mutex_unlock(&G);
     // ExitThread lands here through siglongjmp, back on this host stack with the callee-saved registers restored; the abandoned guest frames need
     // no unwinding (the SDK has finished its own teardown before ExitThread). The signal mask is not saved or restored
     if (sigsetjmp(t->host_exit, 0)) {
@@ -523,8 +434,7 @@ uint32_t svc_thread_main_init(void) {
     pthread_cond_init(&t->cv, NULL);
     t->started = 1; t->prio = 44; t->core = t->act = PROC_IDEAL_CORE; t->mask = 1ull << PROC_IDEAL_CORE; t->pt = pthread_self(); t->hth = dm_hthread_self();
     t->tsd = dm_slot_base();
-    t->cur_core = -1;
-    pthread_mutex_lock(&G); t->handle = h_new(O_THREAD, t); t->id = g_next_id++; t->all = g_all; g_all = t; core_take(t); pthread_mutex_unlock(&G);
+    pthread_mutex_lock(&G); t->handle = h_new(O_THREAD, t); t->id = g_next_id++; t->all = g_all; g_all = t; pthread_mutex_unlock(&G);
     pthread_setspecific(g_keythr, t);
     // The guest main thread runs on the host thread that calls this (the iOS app's boot thread), made without a QoS class, while every other guest
     // thread runs user-interactive (thread_main). DM_MAIN_QOS=ui gives it that class too (plan item 229, a measurement: Tears of the Kingdom's main
@@ -891,21 +801,14 @@ static void kt_dump(int last) {
         fprintf(stderr, "[dm]   %8.3f s ago  %#x %-9s %#llx%s words %#x -> %#x arg %#x\n", (t1 - e->ns) / 1e9, e->thread, nm[e->kind < 6 ? e->kind : 0],
                 (unsigned long long)e->addr, lk, e->w0, e->w1, e->arg); }
 }
-static void sched_threads(double sec, char *out, size_t n) {   // holding G: the per-thread line of DM_SCHED_STATS (schedstats.h sched_thr_report)
-    static sched_thr v[128]; int nv = 0;
-    for (thr_t *t = g_all; t && nv < 128; t = t->all) { if (t->exited || t->host_work) continue;
-        sched_thr *e = &v[nv++]; char nb[32]; *e = (sched_thr){t->handle, t->prio, t->mask, "", t->ncpu - t->ncpu_seen, t->cw_n - t->cw_n_seen, t->cw_ns - t->cw_ns_seen, t->cpu_ever};
-        snprintf(e->name, sizeof e->name, "%s", thr_name(t, nb, sizeof nb)); t->ncpu_seen = t->ncpu; t->cw_n_seen = t->cw_n; t->cw_ns_seen = t->cw_ns; }
-    sched_thr_report(v, nv, sec, out, n);
-}
 int svc_thread(int num, uint64_t *regs) {
-    { thr_t *me = pthread_getspecific(g_keythr); if (me) { me->last_svc = num; me->last_lr = regs[30]; me->nsvc++; core_checkpoint(me); } }
+    { thr_t *me = pthread_getspecific(g_keythr); if (me) { me->last_svc = num; me->last_lr = regs[30]; me->nsvc++; } }
     if (sched_on()) {
         sched_svc(&g_sched, num); static _Atomic uint64_t next; uint64_t t = now_ns(), nx = atomic_load(&next);
         if (!nx) { pthread_mutex_lock(&G); if (!g_sched.t0) g_sched.t0 = t; pthread_mutex_unlock(&G); atomic_compare_exchange_strong(&next, &nx, t + 5000000000ull); }
         else if (t >= nx && atomic_compare_exchange_strong(&next, &nx, t + 5000000000ull)) {
-            char line[1200], tl[1200]; pthread_mutex_lock(&G); double sec = (t - g_sched.t0) / 1e9; sched_report(&g_sched, t, line, sizeof line); sched_threads(sec, tl, sizeof tl);
-            pthread_mutex_unlock(&G); LOG("[sched] %s", line); LOG("[sched] %s", tl);
+            char line[1200]; pthread_mutex_lock(&G); sched_report(&g_sched, t, line, sizeof line);
+            pthread_mutex_unlock(&G); LOG("[sched] %s", line);
         }
     }
     if (g_flag.thr && num != 0x0B) { thr_t *me = pthread_getspecific(g_keythr); LOG("[%#x] svc %#x x0=%#llx x1=%#llx x2=%#llx x3=%#llx", me ? me->handle : 0, num, regs[0], regs[1], regs[2], regs[3]); }
@@ -919,7 +822,7 @@ int svc_thread(int num, uint64_t *regs) {
         { uint64_t sz = 0, b = dm_mapping_of(t->stack_top - 16, &sz); if (b && t->stack_top <= b + sz) t->stack_bot = b; }   // the SDK maps each thread's stack (MapMemory)
         int c = (int)regs[5] == -2 ? PROC_IDEAL_CORE : (int)regs[5];   // -2 = IdealCoreUseProcessValue
         if (c < 0 || c >= 64 || !(PROC_CORE_MASK >> c & 1)) { pthread_cond_destroy(&t->cv); free(t); regs[0] = R_BAD_CORE; return 1; }
-        t->prio = (int)regs[4]; t->core = t->act = c; t->mask = 1ull << c; t->cur_core = -1;   // a new thread may run only on its ideal core (KThread::Initialize)
+        t->prio = (int)regs[4]; t->core = t->act = c; t->mask = 1ull << c;   // a new thread may run only on its ideal core (KThread::Initialize)
         { thr_t *me = pthread_getspecific(g_keythr); if (me && me->next_host) { me->next_host = 0; t->host_work = 1; } }
         t->born_ns = now_ns();
         pthread_mutex_lock(&G); t->handle = h_new(O_THREAD, t); t->id = g_next_id++;
@@ -958,7 +861,6 @@ int svc_thread(int num, uint64_t *regs) {
         thr_t *self = pthread_getspecific(g_keythr);
         uint64_t asked = ns > 0 ? (uint64_t)ns : 0, cap = sleep_backoff_cap(), sl0 = ns > 0 && self && (sleep_stats_on() || cap) ? now_ns() : 0;
         if (sl0 && cap && asked < 1000000) ns = (int64_t)sleep_backoff_ns(sleep_run_age(&self->srun, regs[30], sl_caller(self, regs), self->nsvc, sl0), asked, cap);
-        if (ns > 0 && self && self->cur_core >= 0) { pthread_mutex_lock(&G); core_put(self); pthread_mutex_unlock(&G); }   // a sleeping thread leaves its core
         if (ns > 0 && dm_detclock_enabled()) {
             uint64_t deadline = guest_ns() + (uint64_t)ns;
             while (guest_ns() < deadline) { struct timespec ts = {0, 1000000}; nanosleep(&ts, 0); }
@@ -967,21 +869,13 @@ int svc_thread(int num, uint64_t *regs) {
             thr_t *me = pthread_getspecific(g_keythr); uint64_t y0 = me ? now_ns() : 0;
             uint64_t bo = 0;
             if (me) { me->nyield++; if (me->yrun_svc + 1 != me->nsvc) me->yrun_t0 = y0; me->yrun_svc = me->nsvc; bo = yield_backoff_ns(y0 - me->yrun_t0); }
-            if (bo) {   // a long run of yields: sleep a little, the virtual core given up meanwhile
+            if (bo) {   // a long run of yields: sleep a little
                 me->nbackoff++;
-                if (me->cur_core >= 0) { pthread_mutex_lock(&G); core_put(me); pthread_mutex_unlock(&G); }
                 struct timespec ts = {0, (long)bo}; nanosleep(&ts, 0);
-                if (cores_enabled()) { pthread_mutex_lock(&G); core_take(me); pthread_mutex_unlock(&G); }
-            } else {
-                int give = 0;   // Horizon yield: the core goes to a waiting thread of equal or higher priority
-                if (me && me->cur_core >= 0) { pthread_mutex_lock(&G); for (thr_t *w = g_core_wait; w && !give; w = w->cnext) give = core_allowed(w, me->cur_core) && w->prio <= me->prio;
-                                               if (give) { core_put(me); core_take(me); } pthread_mutex_unlock(&G); }
-                if (!give) sched_yield();
-            }
+            } else sched_yield();
             if (me && me->handle == 0x1001) { g_main_yield_ns += now_ns() - y0; g_main_yield_n++; }
         }
         if (sl0) { if (sleep_stats_on()) sleep_stat(self, regs, asked, sl0, now_ns()); else sleep_run_update(&self->srun, regs[30], sl_caller(self, regs), self->nsvc, sl0, now_ns(), asked); }
-        if (ns > 0 && self && cores_enabled()) { pthread_mutex_lock(&G); core_take(self); pthread_mutex_unlock(&G); }
         if (g_flag.bootprof) { uint64_t d = now_ns() - t0; dm_prof_add(PROF_SLEEP, d, 0); thr_t *me = pthread_getspecific(g_keythr); if (me && me->handle == 0x1001) dm_prof_add(PROF_MAIN_WAIT, d, 0); }
         return 1;
     }
@@ -1012,12 +906,11 @@ int svc_thread(int num, uint64_t *regs) {
         else if (c >= 0 && c < 4) { if (!(m >> c & 1)) r = R_BAD_COMBO; }   // a valid virtual core (0..3 on the Switch's four) must be in the mask
         else if (c != -3 && c != -1) r = R_BAD_CORE;
         if (!r && c == -3) { c = t->core; if (c < 0 || !(m >> c & 1)) r = R_BAD_COMBO; }
-        if (!r) { t->core = c; t->mask = m; if (!(m >> t->act & 1)) t->act = c >= 0 ? c : 63 - __builtin_clzll(m);
-                  if (t == cur() && t->cur_core >= 0 && !core_allowed(t, t->cur_core)) { pthread_mutex_lock(&G); core_put(t); core_take(t); pthread_mutex_unlock(&G); } }   // leaves a core it may no longer use
+        if (!r) { t->core = c; t->mask = m; if (!(m >> t->act & 1)) t->act = c >= 0 ? c : 63 - __builtin_clzll(m); }
         if (g_flag.thr) LOG("SetThreadCoreMask h=%#x core %d mask %#llx -> %#x (ideal %d, runs on %d)", (unsigned)regs[0], (int)regs[1], (unsigned long long)regs[2], r, t ? t->core : 0, t ? t->act : 0);
         regs[0] = r; return 1;
     }
-    case 0x10: { thr_t *t = cur(); if (sched_on()) { t->ncpu++; t->cpu_ever = 1; } regs[0] = (uint64_t)(uint32_t)(t->cur_core >= 0 ? t->cur_core : t->act); return 1; }   // GetCurrentProcessorNumber: the core the thread runs on (the virtual core it holds), not the ideal core
+    case 0x10: regs[0] = (uint64_t)(uint32_t)cur()->act; return 1;   // GetCurrentProcessorNumber: the core the thread runs on, not the ideal core
     case 0x25: { thr_t *t = h_get((uint32_t)regs[1], O_THREAD); regs[0] = t ? 0 : R_BAD_HANDLE; regs[1] = t ? t->id : 0; return 1; }
 
     case 0x1A: {  // ArbitrateLock(w0 owner handle, x1 address, w2 this thread's tag)

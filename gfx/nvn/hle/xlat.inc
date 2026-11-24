@@ -78,7 +78,6 @@ static uint64_t x_push(xjob *j) {   // the job's number (from 1); a submission's
 static void x_wait_job(uint64_t job) {
     pthread_mutex_lock(&g_xq_mu); int done = g_xq_done >= job; pthread_mutex_unlock(&g_xq_mu);
     if (done) return;
-    NVN_BLOCKING();   // a guest thread gives its virtual core back while it waits
     pthread_mutex_lock(&g_xq_mu); while (g_xq_done < job) pthread_cond_wait(&g_xq_cv, &g_xq_mu); pthread_mutex_unlock(&g_xq_mu);
 }
 static void x_drain(void) {   // everything queued so far has run (nothing to do without the thread, or when it is idle)
@@ -99,7 +98,6 @@ static int x_token_fence(uint64_t k, uint64_t timeout_ns, uint64_t *fence) {
     if (ok) *fence = !k ? 0 : g_xsub_done - k < XF ? g_xsub_fence[k % XF] : mtl_last_fence();
     pthread_mutex_unlock(&g_xq_mu);
     if (ok || !timeout_ns) return ok;
-    NVN_BLOCKING();   // the core given back before the lock is taken and taken back after it is released (at return): never waited for while holding it
     struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl);
     uint64_t ns = (uint64_t)dl.tv_nsec + (timeout_ns > 3600000000000ull ? 3600000000000ull : timeout_ns);
     dl.tv_sec += (time_t)(ns / 1000000000ull); dl.tv_nsec = (long)(ns % 1000000000ull);
@@ -121,7 +119,6 @@ void nvn_xlat_step(int n) { pthread_mutex_lock(&g_xq_mu); g_xleft = n; pthread_c
 uint64_t nvn_xlat_pending(void) { pthread_mutex_lock(&g_xq_mu); uint64_t n = g_xq_in - g_xq_done; pthread_mutex_unlock(&g_xq_mu); return n; }
 NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h) {
     if (test_work_ms() > 0) { uint64_t from = atomic_exchange(&g_test_work_from, 0); if (from) sleep_until_ns(from + (uint64_t)test_work_ms() * 1000000ull); }
-    NVN_BLOCKING();
     uint64_t tr = trace_now();
     gfx_enter();
     ((queue_t *)q)->submits++;

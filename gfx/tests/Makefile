@@ -171,10 +171,8 @@ t_restart: t_restart.m $(CRASH) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_restart.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
 t_live: t_live.m $(CRASH) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_live.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
-t_wb: t_wb.m core_away_stub.c $(CRASH) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -o $@ t_wb.m core_away_stub.c $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
-t_wb_kept: t_wb.m core_away_stub.c $(CRASH) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -DDM_TEST_WB_KEEPS_CORE -o $@ t_wb.m core_away_stub.c $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
+t_wb: t_wb.m $(CRASH) $(GFX) $(GFX_H)
+	clang $(CFLAGS) -fobjc-arc -o $@ t_wb.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
 t_pend: t_pend.m $(CRASH) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_pend.m $(CRASH) $(filter-out ../nvn/nvn_mtl.m ../nvn/nvn_entry.S ../nvn/nvn_thunks.S,$(GFX)) $(FW)
 t_keepalive: t_keepalive.m $(CRASH) $(GFX) $(GFX_H)
@@ -253,10 +251,8 @@ t_dbounds: t_dbounds.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_dbounds.m $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
 t_nvn64d: t_nvn64d.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_nvn64d.m $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
-t_pools: t_pools.m core_away_stub.c ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -o $@ t_pools.m core_away_stub.c $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
-t_pools_kept: t_pools.m core_away_stub.c ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
-	clang $(CFLAGS) -fobjc-arc -DDM_TEST_POOL_KEEPS_CORE -o $@ t_pools.m core_away_stub.c $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
+t_pools: t_pools.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
+	clang $(CFLAGS) -fobjc-arc -o $@ t_pools.m $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
 t_blkunp: t_blkunp.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
 	clang $(CFLAGS) -fobjc-arc -o $@ t_blkunp.m $(CRASH) $(HSTACK) $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
 t_xlat: t_xlat.m ../nvn/hle_nvn.c $(CRASH) $(HSTACK) $(GFX) $(GFX_H)
@@ -418,7 +414,6 @@ run: \
 	t_dbounds \
 	t_nvn64d \
 	t_pools \
-	t_pools_kept \
 	t_blkunp \
 	t_xlat \
 	t_mtlguard \
@@ -502,7 +497,6 @@ run: \
 	t_visibility \
 	t_warm_list \
 	t_wb \
-	t_wb_kept \
 	t_writetexels \
 	t_flushtexels \
 	t_xv \
@@ -627,10 +621,6 @@ run: \
 	MTL_DEBUG_LAYER=1 ./t_dbounds
 	MTL_DEBUG_LAYER=1 ./t_nvn64d
 	./t_pools
-	@status=0; ./t_pools_kept > t_pools_kept.log 2>&1 || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' t_pools_kept.log)" -ne 1 ]; then \
-	   cat t_pools_kept.log; echo "t_pools_kept: unexpected negative-control result ($$status)"; exit 1; \
-	 else echo 't_pools_kept: pool setup keeping the core fails 1, as expected'; fi
 	MTL_DEBUG_LAYER=1 ./t_xlat
 	MTL_DEBUG_LAYER=1 ./t_blkunp
 	DM_NVN_XLAT=1 ./t_rqueue   # the render-queue cases with the translation thread (plan item 61)
@@ -671,10 +661,6 @@ run: \
 	./t_live
 	./t_wb
 	DM_NVN_WB_IDLE=1 ./t_wb --idle
-	@status=0; ./t_wb_kept > t_wb_kept.log 2>&1 || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' t_wb_kept.log)" -ne 1 ]; then \
-	   cat t_wb_kept.log; echo "t_wb_kept: unexpected negative-control result ($$status)"; exit 1; \
-	 else echo 't_wb_kept: a write-back wait keeping the core fails 1, as expected'; fi
 	./t_pend
 	./t_ppred
 	MTL_DEBUG_LAYER=1 ./t_present_res

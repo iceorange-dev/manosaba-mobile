@@ -93,7 +93,6 @@ static uint8_t shader_stage(const NVNshaderData *sd) {
     return 0xff;
 }
 NVN(nvnProgramSetShaders, NVNboolean, NVNprogram *p, int n, const NVNshaderData *sd) {
-    NVN_BLOCKING();   // loads / builds shader libraries
     prog_t *o = (prog_t *)p;
     if (o->serial) x_drain();   // its old shaders may still be in a queued replay (plan item 61)
     if (n < 0 || n > 6) { LOG("[red] ProgramSetShaders: stage count %d", n); return 0; }

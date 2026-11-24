@@ -64,7 +64,6 @@ int mtl_fps_target(void);   // nvn_mtl.m: the player's frame rate target (DM_FPS
 static int win_interval(const win_t *o) {
     return nvn_hold_interval(g_display_mode ? 1 : o->interval, g_hz, nvn_pace_hold(mtl_fps_target())); }   // (plan item 135b)
 NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsync *s, int *idx) {
-    NVN_BLOCKING();
     uint64_t tr = trace_now();
     win_t *o = (win_t *)w;
     int nuse = o->nactive ? o->nactive : o->ntex;

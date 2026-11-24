@@ -10,7 +10,6 @@
 #include <mach/mach_time.h>
 int svc_thread(int num, uint64_t *regs);
 uint32_t svc_thread_main_init(void);
-uint64_t dm_core_migrations(void);
 void (*dm_test_cv_after_release)(void);
 struct dm_flags g_flag;
 const dm_game_profile dm_game = { .id = "test" };

@@ -18,8 +18,6 @@ typedef struct {
     int nvn_depth_mode;                       // NVNdepthMode its shaders were built for (game.json depth_mode: 0 near_is_minus_w, 1 near_is_zero)
     int present_fifo;                         // 1: the display link shows every queued frame in order, each for its present period (game.json present_consume "fifo",
                                               //    a game that steps once per frame: manosaba); default "newest": the newest, older ones dropped
-    int virtual_cores;                        // 1: guest threads hold one of three virtual cores while running guest code (game.json virtual_cores; hle_thread.c): the game
-                                              //    keeps per-core data without locks (Tears of the Kingdom)
     uint32_t npdm_sysres;                     // the NPDM's SystemResourceSize (game.json npdm.system_resource_size; GetInfo 16; 0 = the host's 32 MiB)
     uint8_t npdm_prio_hi, npdm_prio_lo;       // its ThreadInfo capability's highest / lowest thread priority (game.json npdm.thread_priority; GetInfo 1)
     const dm_game_file *romfs_files; int romfs_nfiles;          // key RomFS files with their exact sizes (also tells the version)

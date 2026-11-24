@@ -64,7 +64,7 @@ static int on_host_stack(uintptr_t sp) {
 
 // ---------- Host facilities hle_thread.c / thread.c / entry.S need ----------
 struct dm_flags g_flag;
-const dm_game_profile dm_game = { .id = "test" };   // virtual cores off (hle_thread.c reads dm_game.virtual_cores)
+const dm_game_profile dm_game = { .id = "test" };
 uint64_t g_t0_ns;
 pthread_key_t g_key18, g_keytls, g_keytlr, g_keygate;
 void *guest_sym(const char *name) { (void)name; return NULL; }

@@ -42,7 +42,6 @@ NVN(nvnSyncWait, NVNsyncWaitResult, const NVNsync *s, uint64_t timeout) {
     return r;
 }
 static NVNsyncWaitResult sync_wait(const NVNsync *s, uint64_t timeout) {
-    NVN_BLOCKING();
     uint64_t fence;
     if (!sync_fence_load((const sync_t *)s, &fence)) {
         static _Atomic uint64_t n; uint64_t k = atomic_fetch_add(&n, 1) + 1;

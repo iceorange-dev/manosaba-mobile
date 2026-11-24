@@ -122,7 +122,7 @@ What was ported from each project, by hand and credited where it lives in the co
   variant of the duplicated colour slot handling that keeps the slot the pass writes, the memory snapshots (`DM_MEMSNAP`), the FMZ multiply in
   the shader translator, the attachment copies for draws that sample what their pass draws and code options applied at load.
 - **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)** ([ly05010419](https://github.com/ly05010419), MIT), a Tears of the Kingdom
-  port on the same lineage: which RomFS files hold the shaders, virtual cores, clears drawn as quads, BC render targets through an auxiliary
+  port on the same lineage: which RomFS files hold the shaders, clears drawn as quads, BC render targets through an auxiliary
   texture, storage buffers addressed from uniform buffers, stale texture views, the 60 fps
   controller words, the real-time frame step, its uncapped pacing and the scene render size, uniform snapshots, and from its graphics layer the pending-write table, keep-alive, chunked
   commits, render-state filter, upload staging pool, storage-followed and storage-shared textures, GPU write-back, uniform renaming,
@@ -130,7 +130,7 @@ What was ported from each project, by hand and credited where it lives in the co
   the GPU memory budget and pool range checks, and the RomFS overlay findings for 60 fps; then the fault guard around snapshot copies, read-only
   rodata, waiting for a save at quit and one game at a time on the Mac, host calls on a per-thread host stack with the frame record back to
   the guest, the live command channel, the sead heap walk and list watch and the soak measurement; then no blending on integer colour outputs,
-  empty memory pools, virtual cores handed over by moving their owner and fewer pipeline guesses, ported by hand and credited in the code; the
+  empty memory pools and fewer pipeline guesses, ported by hand and credited in the code; the
   Mac shader libraries' minimum system version; and shaders that differ only in control bytes the translator does not read translated and
   packed once.
 - **[LASRecomp](https://github.com/peiikai/LASRecomp)** ([Peiikai](https://github.com/peiikai), MIT), a static recompilation of Link's Awakening:

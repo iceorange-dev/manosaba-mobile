@@ -20,7 +20,6 @@ def load(path):
     if g.get('depth_mode') not in ('near_is_minus_w', 'near_is_zero'): sys.exit(f'{path}: depth_mode must be "near_is_minus_w" or "near_is_zero"')
     if g.get('alpha_test', 'off') not in ('on', 'off'): sys.exit(f'{path}: alpha_test must be "on" or "off" (omitted: off)')
     if g.get('present_consume', 'newest') not in ('newest', 'fifo'): sys.exit(f'{path}: present_consume must be "newest" or "fifo"')
-    if not isinstance(g.get('virtual_cores', False), bool): sys.exit(f'{path}: virtual_cores must be true or false')
     langs = g.get('languages', [g['language']])   # the game's own (plan item 170): nn::settings language codes; the device's language is taken among them
     if not isinstance(langs, list) or not langs or any(l not in LANG_CODES for l in langs) or g['language'] not in langs:
         sys.exit(f'{path}: languages must list nn::settings language codes ({" ".join(LANG_CODES)}), the profile\'s language among them')
@@ -59,7 +58,6 @@ def write_c(g, out):
           '    .nvn_c2 = {%s},' % ', '.join(f'{v[0]}, {v[1]}' for v in (g['nvn_c2']['tex'], g['nvn_c2']['samp'], g['nvn_c2']['img'])),
           '    .nvn_depth_mode = %d,' % (1 if g['depth_mode'] == 'near_is_zero' else 0),
           '    .present_fifo = %d,' % (g.get('present_consume', 'newest') == 'fifo'),
-          '    .virtual_cores = %d,' % bool(g.get('virtual_cores', False)),
           '    .npdm_sysres = %s, .npdm_prio_hi = %d, .npdm_prio_lo = %d,' % ((g.get('npdm', {}).get('system_resource_size', '0x0'),) + tuple(g.get('npdm', {}).get('thread_priority', [0, 0]))),
           f'    .romfs_files = romfs_files, .romfs_nfiles = {len(files)},',
           f'    .romfs_tree = {cstr(r["tree"]) if r.get("tree") else "0"}, .romfs_tree_files = {r.get("tree_files", 0)}, .romfs_tree_bytes = {r.get("tree_bytes", 0)}LL,',

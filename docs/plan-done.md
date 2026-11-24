@@ -362,9 +362,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   3D slot binds the zero 3D texture (2bccdcc); a writable storage binding of size 0 drops the uniform snapshots over the rest of its pool
   (f293a70); a vertex shader reading past a stream's bound size is reported (1c54ea0; the zero-padded copy to do when a game shows the line);
   the host (ce99604): the audio renderer's command list bounded, audio outputs and new guest threads registered once made, thread priority under G.
-- 297 · b142 · the virtual core given up while waiting (game.json virtual_cores, Tears of the Kingdom; a no-op without): every nn::fs call the
-  host takes over (valentderah/totk-pc-recomp 101f2c8, MIT), nvnMemoryPoolInitialize (up to 20 ms there), and the GPU wait of a write-back on
-  invalidate (MacNativeGames 0fd9358e, MIT: the wait only). NVN_BLOCKING now lives in hle_nvn.c's preamble.
 - 298 · b141 · the crash report with a time limit (jhaizhou-ops/d2r-mobile 3ebb29bd, MIT, written anew; n2ray's f697868f in its review
   branch): the first part (CRASH line, registers, frame-pointer backtrace through dm_mem_read) is built on the stack and written with
   write(2), no allocation or lock; the second part (symbols, thread dump) runs under a 3 s alarm that ends the process with a line saying so.
@@ -424,9 +421,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   AudioDeviceSession.Stop, MIT, written anew). The picture clear of the outer front camera (the user, 2026-11-01): `host/fit_rect.h`
   `dm_fit_rect`, `dm_known_cutout`. Upstream d2r-mobile's iPhone Duo support (v2.0 b811b90, MIT); d-date/iphone-duo-skill (MIT, 31bdab9).
 - 303h · b146 · the Mac app out of Game Mode (`LSSupportsGameMode` false in `tools/mac_app.sh`; nxnative cb59a67).
-- 306 · b147 · a virtual core's owner moves to a free core it may use when a waiter may use only that core (MacNativeGames 3a48acf, written
-  anew; Horizon's suggested-thread migration). On the Mac (product60, `DM_SCHED_STATS=1`) moves happen, but the core takes of about 10 ms
-  stay and frame times are as before.
 - 307 · b147 · the lookahead guesses no attach mode without the depth a draw tests or writes, nor without the stencil it tests
   (`pp_variant_ok`; MacNativeGames 3578d66).
 - 308f · b148 · the manifest's `configChanges` with mcc, mnc, locale, touchscreen, layoutDirection, colorMode, grammaticalGender,
@@ -469,9 +463,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 315d · not taken (b156) · S2Arm's rounding of unblended half-float colour outputs toward zero in the shader by a per-pipeline mask (nx-port's
   clamp was not taken because it hit R32F targets): the M5 rounds toward zero (0x3c00), the iPhone Air's A19 Pro to nearest (0x3c01); Tears of
   the Kingdom's targets hold nothing at ±65504 or ±inf, no difference seen (port when a game needs it). In: `texdump -` counts them and NaN.
-- 315f · not taken (b157) · virtual cores only for threads that ask for their core or are bound to one (S2Arm's on-demand mode: 0 shared core
-  numbers on the Mac where none gave 671) would free nothing: 51 of Tears of the Kingdom's 52 threads would keep their core (the masks are the
-  game's own), the free one waits 0.00-0.02 ms/s for a core (the M5's prologue). `DM_SCHED_STATS=1` gets a line a thread every 5 s.
 - 316 · b158 · manosaba's short sleeps (88) backed off (S2Arm 4c0bec5, Apache-2.0, written anew; S2Arm on a Unity game: 5.13 W for the
   device, 4.03 W at 100 µs): in a run of sleeps under 1 ms from one return address each sleep after 2 ms of the run is max(asked, run / 8)
   up to 100 µs (`DM_SLEEP_BACKOFF=<µs>`, `host/sleepstats.h`). M5: 24,000 → 9,200 a second; iPhone Air 17,700 → 12,300, CPU 0.13 → 0.10 W.
@@ -531,7 +522,7 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196-b203) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
+- 328 · part (b196-b204) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
   `games/totk`, `engines/bnsh`, the hooks only it implemented with what they drove (the frame step, uncapped pacing, ProMotion's 120 Hz, the
   movies' hold), sead's heaps, eight profile fields, mods, cheats, pchtxt, the on-screen touch pad, nn::nfp and nn::codec, VP8 / VP9 movies
-  with libvpx (329; the game's clips are H.264 and AAC in MP4). Left: plan.md.
+  with libvpx (329; the game's clips are H.264 and AAC in MP4), the virtual cores. Left: plan.md.

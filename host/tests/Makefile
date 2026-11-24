@@ -37,8 +37,6 @@ run: \
 	$(B)/t_condvar \
 	$(B)/t_condvar_old \
 	$(B)/t_waitsync \
-	$(B)/t_vcores \
-	$(B)/t_vcores_nomove \
 	$(B)/t_sleepshort \
 	$(B)/t_sleepshort_skip \
 	$(B)/t_waitsync_rescan \
@@ -72,8 +70,6 @@ run: \
 	$(B)/t_fs_saveyes \
 	$(B)/t_fs_strict \
 	$(B)/t_fs_case \
-	$(B)/t_fs_core \
-	$(B)/t_fs_core_kept \
 	$(B)/t_fs_index \
 	$(B)/t_fs_kill \
 	$(B)/t_fs_kill_inplace \
@@ -148,7 +144,6 @@ run: \
 	$(B)/t_shadercache_metal \
 	$(B)/t_schedstats \
 	$(B)/t_schedstats_start \
-	$(B)/t_schedstats_onefree \
 	$(B)/t_sleepstats \
 	$(B)/t_sleepstats_anysvc \
 	$(B)/t_sleepstats_bodefault \
@@ -248,11 +243,6 @@ run: \
 	 fi; echo "t_cmdchan_noreopen: following the first file for good misses the replaced file's lines, as expected"
 	$(B)/t_condvar
 	$(B)/t_condvar_old
-	$(B)/t_vcores
-	@status=0; $(B)/t_vcores_nomove > $(B)/t_vcores_nomove.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_vcores_nomove.log)" -ne 2 ]; then \
-	   cat $(B)/t_vcores_nomove.log; echo "t_vcores_nomove: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_vcores_nomove: a thread kept waiting behind a movable owner, as expected"
 	$(B)/t_sleepshort
 	@status=0; $(B)/t_sleepshort_skip > $(B)/t_sleepshort_skip.log 2>/dev/null || status=$$?; \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_sleepshort_skip.log)" -ne 2 ]; then \
@@ -344,11 +334,6 @@ run: \
 	   cat $(B)/t_fs_strict.log; echo "t_fs_strict: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_fs_strict: \"/rom:/\" and backslashes refused, as expected"
 	TMPDIR="$(abspath $(B))" $(B)/t_fs_case 2>/dev/null
-	$(B)/t_fs_core 2>/dev/null
-	@status=0; $(B)/t_fs_core_kept > $(B)/t_fs_core_kept.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '^FAIL' $(B)/t_fs_core_kept.log)" -ne 2 ]; then \
-	   cat $(B)/t_fs_core_kept.log; echo "t_fs_core_kept: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_fs_core_kept: nn::fs calls keeping the core fail 2, as expected"
 	TMPDIR="$(abspath $(B))" $(B)/t_fs_index 2>/dev/null
 	TMPDIR="$(abspath $(B))" $(B)/t_fs_kill
 	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_fs_kill_inplace > $(B)/t_fs_kill_inplace.log 2>&1 || status=$$?; \
@@ -546,10 +531,6 @@ run: \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_schedstats_start.log)" -ne 1 ]; then \
 	   cat $(B)/t_schedstats_start.log; echo "t_schedstats_start: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_schedstats_start: the latency counted from the wait's start reads long, as expected"
-	@status=0; $(B)/t_schedstats_onefree > $(B)/t_schedstats_onefree.log 2>&1 || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_schedstats_onefree.log)" -ne 1 ]; then \
-	   cat $(B)/t_schedstats_onefree.log; echo "t_schedstats_onefree: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_schedstats_onefree: a thread on one core only counted as free misplaces its waits, as expected"
 	$(B)/t_sleepstats
 	@status=0; $(B)/t_sleepstats_anysvc > $(B)/t_sleepstats_anysvc.log 2>&1 || status=$$?; \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_sleepstats_anysvc.log)" -ne 2 ]; then \
@@ -906,10 +887,6 @@ $(B)/t_sysevent: t_sysevent.c t_condvar_stub.c ../hle/hle_thread.c ../dm.h ../ru
 	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -DT_OWN_GUEST_SYM -I.. -o $@ t_sysevent.c t_condvar_stub.c ../hle/hle_thread.c ../runtime/plat_apple.c
 $(B)/t_threadcpu: t_threadcpu.c t_condvar_stub.c ../hle/hle_thread.c ../dm.h ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -I.. -o $@ t_threadcpu.c t_condvar_stub.c ../hle/hle_thread.c ../runtime/plat_apple.c
-$(B)/t_vcores: t_vcores.c ../hle/hle_thread.c ../dm.h ../runtime/plat_apple.c | $(B)
-	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -I.. -o $@ t_vcores.c ../hle/hle_thread.c ../runtime/plat_apple.c
-$(B)/t_vcores_nomove: t_vcores.c ../hle/hle_thread.c ../dm.h ../runtime/plat_apple.c | $(B)
-	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -DDM_TEST_NO_MIGRATE -I.. -o $@ t_vcores.c ../hle/hle_thread.c ../runtime/plat_apple.c
 $(B)/t_sleepshort: t_sleepshort.c ../hle/hle_thread.c ../dm.h ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -I.. -o $@ t_sleepshort.c ../hle/hle_thread.c ../runtime/plat_apple.c
 $(B)/t_sleepshort_skip: t_sleepshort.c ../hle/hle_thread.c ../dm.h ../runtime/plat_apple.c | $(B)
@@ -938,10 +915,6 @@ $(B)/t_fs_kill_inplace: t_fs_kill.c t_fs_stub.c ../hle/hle_fs.c ../hle.h ../dm.h
 	clang -O1 -Wall -Wno-unused-function -DDM_TEST_FS_COMMIT_INPLACE -I.. -o $@ t_fs_kill.c t_fs_stub.c ../game/game.c $(GEN) ../runtime/plat_apple.c
 $(B)/t_fs_index: t_fs_index.c ../hle/hle_fs.c ../hle.h ../dm.h ../game/game.c $(GEN) ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wno-unused-function -I.. -o $@ t_fs_index.c ../game/game.c $(GEN) ../runtime/plat_apple.c
-$(B)/t_fs_core: t_fs_core.c t_fs_core_stub.c ../hle/hle_fs.c ../hle.h ../dm.h ../game/game.c $(GEN) ../runtime/plat_apple.c | $(B)
-	clang -O1 -Wno-unused-function -I.. -o $@ t_fs_core.c t_fs_core_stub.c ../game/game.c $(GEN) ../runtime/plat_apple.c
-$(B)/t_fs_core_kept: t_fs_core.c t_fs_core_stub.c ../hle/hle_fs.c ../hle.h ../dm.h ../game/game.c $(GEN) ../runtime/plat_apple.c | $(B)
-	clang -O1 -Wno-unused-function -DDM_TEST_FS_KEEPS_CORE -I.. -o $@ t_fs_core.c t_fs_core_stub.c ../game/game.c $(GEN) ../runtime/plat_apple.c
 $(B)/t_fs_case: t_fs_case.c ../hle/hle_fs.c ../hle.h ../dm.h ../game/game.c $(GEN) ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wno-unused-function -I.. -o $@ t_fs_case.c ../game/game.c $(GEN) ../runtime/plat_apple.c
 $(B)/t_guest_mem: t_guest_mem.c ../hle/hle_svc.c ../rodata_seal.h ../hle.h ../dm.h ../game/game.c $(GEN) ../runtime/plat_apple.c | $(B)
@@ -1051,8 +1024,6 @@ $(B)/t_schedstats: t_schedstats.c ../schedstats.h | $(B)
 	clang -O1 -Wall -I.. -o $@ t_schedstats.c
 $(B)/t_schedstats_start: t_schedstats.c ../schedstats.h | $(B)
 	clang -O1 -Wall -I.. -DDM_TEST_SCHED_WAKE_FROM_START -o $@ t_schedstats.c
-$(B)/t_schedstats_onefree: t_schedstats.c ../schedstats.h | $(B)
-	clang -O1 -Wall -I.. -DDM_TEST_SCHED_THR_ONE_CORE_FREE -o $@ t_schedstats.c
 $(B)/t_sleepstats: t_sleepstats.c ../sleepstats.h | $(B)
 	clang -O1 -Wall -I.. -o $@ t_sleepstats.c
 $(B)/t_sleepstats_anysvc: t_sleepstats.c ../sleepstats.h | $(B)
