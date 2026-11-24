@@ -22,8 +22,6 @@ SRC = \
 	game/aspect.c \
 	cloud/cloud.m \
 	cloud/cloudsync.c \
-	game/cheat_vm.c \
-	game/cheats.c \
 	front/cmdchan.c \
 	runtime/crash.c \
 	diag/diag.c \
@@ -40,11 +38,9 @@ SRC = \
 	runtime/main.c \
 	diag/memsnap.c \
 	diag/memstat.m \
-	game/mods.c \
 	media/movie_av.m \
 	media/movie_webm.c \
 	runtime/options.c \
-	game/pchtxt.c \
 	runtime/plat_apple.c \
 	front/procon_mac.m \
 	runtime/romfs_parts.c \
@@ -52,7 +48,6 @@ SRC = \
 	diag/sdktest.c \
 	diag/thermal.m \
 	runtime/thread.c \
-	front/touchpad.c \
 	$(sort $(wildcard hle/hle_*.c)) \
 	$(sort $(wildcard $(GAMEDIR)/*.c $(GAMEDIR)/*.m))
 # NVN → Metal and nn::vi (gfx/): sources under gfx, gfx/nvn and gfx/tex by wildcard (tests/ and metal/ are not part of the host)

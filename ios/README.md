@@ -54,12 +54,12 @@ What `build` puts into the app (`Gen/`, generated, not committed):
 
 ## iOS Simulator
 
-For the on-screen controls, safe areas and lifecycle without a phone (plan item 114):
+For safe areas and the lifecycle without a phone (plan item 114):
 
 ```sh
 python3 ios/tools/sim_metal.py $DM_ROOT/build/mano/shader_map.tsv $DM_ROOT/build/cache/metal_shader_cache/b-<V> $DM_ROOT/build/ios/sim/manosaba/b-<V>
 ios/run.sh sim-build              # Metal 3, arm64, unsigned (log: $DM_ROOT/run/ios/build-sim.log)
-DM_SIM_ENV="DM_TOUCH=pad" ios/run.sh sim-run 30    # iPhone 17 Pro (DM_SIM_DEVICE), a screenshot in $DM_ROOT/run/ios/sim.png
+ios/run.sh sim-run 30             # iPhone 17 Pro (DM_SIM_DEVICE), a screenshot in $DM_ROOT/run/ios/sim.png
 DM_SIM_BG=20,10 ios/run.sh sim-run 30              # a real trip to the background (the Settings app) and back, judged: LIFECYCLE OK / RED
 ios/run.sh sim-stop
 ```
@@ -120,14 +120,6 @@ app's signature: yes / no` (the entitlements read back from the executable's own
   `romfs_overlay` in the same three places (`push-data overlay` copies the workspace's `build/<game>/romfs_overlay`), served when its
   `manifest.tsv` says it was made from the RomFS beside it (`host/runtime/romfs_validate.c`); `DM_ROMFS_OVERLAY` in env.txt names another, empty turns
   it off.
-- **Mods**: `Documents/mods` (Files app), one folder per mod (`<mod>/romfs`, or as shipped for Atmosphère), or an SD card's `atmosphere`
-  folder copied as is; earlier names win, a name starting with `-` turns a mod off; code mods are not applied (`host/game/mods.c`).
-- **On-screen controls** (game.json `touch` "pad", which manosaba's profile does not set: its touches go to the game; `DM_TOUCH=pad` turns
-  them on): BotWRecomp's layout (`host/front/touchpad.c`): a floating stick on the left half, D-pad, ABXY, L / R / ZL / ZR, - / +,
-  L3 / R3, and the right half outside the buttons turns the camera by the finger's speed. The eye button collapses them to itself (kept across
-  launches); a connected game controller turns them off. Settings app → this app → Touch Camera: the camera swipe's sensitivity (0.25-3×,
-  applied before the turn speed saturates) and inverted axes (`DM_TOUCH_LOOK=<sensitivity>[,x][,y]` at launch). `DM_TEST_TOUCHPAD=check:<s>`
-  runs the input checks on the device and logs the result.
 - **Saves**: `Documents/save` (transactional, committed atomically). With iCloud entitlements the profile's `save_sync` files are synced
   (`host/cloud/cloud.m`).
 - **Log**: `Documents/boot.txt` (the last foreground session; the one before is `boot.previous.txt`). Settings app → this app → "Show log on
@@ -155,7 +147,7 @@ app's signature: yes / no` (the entitlements read back from the executable's own
 | File | What it does |
 |---|---|
 | `Sources/main.m` | App and scene delegates, log, finding the game data, graphics settings, starting the host |
-| `Sources/front_ios.m` | The front end (`host/front.h`): Metal layer, touches, on-screen controls (`host/front/touchpad.c`), controllers, lifecycle |
+| `Sources/front_ios.m` | The front end (`host/front.h`): Metal layer, touches, controllers, lifecycle |
 | `Sources/log_overlay.m`, `Settings.bundle` | On-screen log and frame rate line; the Settings app page (graphics settings and the log switches) |
 | `Sources/diag_export.m` | Diagnostics export (the Export Diagnostics quick action) |
 | `project.yml` | xcodegen spec; `tools/project_free.py` / `tools/project_m3.py` derive the free-account and iOS 18 variants |

@@ -1,8 +1,7 @@
 # games — one directory per supported game
 
 Everything that is specific to one game lives in `games/<id>/`. The core (`host/`, `gfx/`, `ios/`, `tools/`, `verify/`) reads only what is described
-here, so adding a game means adding a directory, not editing the core. `tools/new_game.py` drafts a new directory from your dumped game files
-(see [PORTING.md](../PORTING.md)).
+here. The one game is manosaba: `games/manosaba/`.
 
 | File | Required | Used by |
 |---|---|---|
@@ -19,7 +18,7 @@ Select the game with `GAME=<id>` for `make -C host` and with `DM_GAME=<id>` for 
 | `id` | Directory name; also the executable name inside the Mac app |
 | `title`, `version` | Shown in logs, the Mac app name and the iOS home screen |
 | `engine` | Informational (`unity`, …); engine-specific tools live in `engines/<engine>/` |
-| `program_id` | Title ID (hex), reported by `svc GetInfo` (ProgramId). `new_game.py` reads it from `main.npdm` |
+| `program_id` | Title ID (hex), reported by `svc GetInfo` (ProgramId). From `main.npdm` |
 | `modules` | NSO modules to load, in load order (`rtld` is never listed: the host plays its role) |
 | `main_build_id` | Build ID of the supported `main` (NSO header bytes 0x40–0x4f). The loader refuses a product built from another `main` |
 | `language` | Default `nn::oe::GetDesiredLanguage` answer (e.g. `en-US`, `ja`, `zh-Hans`); `DM_LANG` overrides it |
@@ -29,7 +28,6 @@ Select the game with `GAME=<id>` for `make -C host` and with `DM_GAME=<id>` for 
 | `depth_mode` | The depth convention the game sets with `nvnDeviceSetDepthMode`: `near_is_zero` (Metal's own; manosaba) or `near_is_minus_w` (GL; Tears of the Kingdom), for which the shader build remaps z in every vertex shader. The host logs the game's choice at startup (`[nvn] depth mode`) and reports red when it differs from this field |
 | `virtual_cores` | `true`: guest threads hold one of three virtual cores while they run guest code (`host/hle/hle_thread.c`). The comment in `host/game.h` gives the details |
 | `present_consume` | `"fifo"`: the display link shows every queued frame in order, each for its present period, for a game that steps its logic once per frame (manosaba; `gfx/nvn/nvn_pace.h` `nvn_fifo_due`). Omitted or `"newest"`: the newest frame, older ones dropped |
-| `touch` | `"pad"`: on iOS the touchscreen is on-screen controls with a drag-to-look camera (`host/front/touchpad.c`, after BotWRecomp; off while a game controller is connected), for a game steered with a controller (Tears of the Kingdom). Omitted or `"screen"`: touches go to the game's touchscreen (manosaba) |
 | `alpha_test` | `"on"`: fragment shaders are built with the NVN alpha test (`gfx/tools/dmsh_build.py` alpha_test; each is specialized once at load, 2-18 ms the first time on an M5). Omitted or `"off"`: none, and a game calling `ColorStateSetAlphaTest` gets a red line (neither manosaba nor Tears of the Kingdom does) |
 | `nvn_c2` | Where the game's shaders read texture / sampler / image handles in the NVN driver bank c[2]: `["0x base", slots]` per table, 8 bytes a slot. It depends on the NVN version the shaders were compiled for: manosaba textures `0x168`, Tears of the Kingdom (and the games nxnative ports) textures `0x20`; samplers `0x568` and images `0x120` in both. `new_game.py` writes the second; a wrong layout shows as many "binding without a slot" lines in `dmsh_build.py`'s summary |
 | `romfs.files` | Key RomFS files and their exact sizes; checked before the game starts, which also catches the wrong game version |

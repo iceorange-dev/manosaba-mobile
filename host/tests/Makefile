@@ -119,9 +119,6 @@ run: \
 	$(B)/t_motion_nobias \
 	$(B)/t_motion_nograv \
 	$(B)/t_motion_nopeak \
-	$(B)/t_mods \
-	$(B)/t_mods_case \
-	$(B)/t_mods_nopin \
 	$(B)/t_mouse_route \
 	$(B)/t_mouse_route_swallow \
 	$(B)/t_movie \
@@ -163,14 +160,7 @@ run: \
 	$(B)/t_guest_as_nolimit \
 	$(B)/t_options \
 	$(B)/t_options_nocheck \
-	$(B)/t_cheat_vm \
-	$(B)/t_cheat_vm_flat \
-	$(B)/t_cheats \
-	$(B)/t_cheats_norw \
 	$(B)/t_padmap \
-	$(B)/t_pchtxt \
-	$(B)/t_pchtxt_nocheck \
-	$(B)/t_pchtxt_oldflags \
 	$(B)/t_ns_text \
 	$(B)/t_ns_text_default \
 	$(B)/t_padmap_posall \
@@ -203,13 +193,6 @@ run: \
 	$(B)/t_tzrule \
 	$(B)/t_tzrule_dev \
 	$(B)/t_touch \
-	$(B)/t_touchpad \
-	$(B)/t_touchpad_rehit \
-	$(B)/t_touchpad_sensafter \
-	$(B)/t_touchpad_custom \
-	$(B)/t_touchpad_nowin \
-	$(B)/t_touchpad_ctlconnect \
-	$(B)/t_touchpad_sigmoves \
 	$(B)/t_watchdog \
 	$(B)/t_watchdog_nobg
 	$(B)/t_altstack
@@ -481,15 +464,6 @@ run: \
 	   cat $(B)/t_logstamp_every.log; echo "t_logstamp_every: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_logstamp_every: a stamp before every write lands inside a line written in two goes, as expected"
 	TMPDIR="$(abspath $(B))" $(B)/t_memsnap 2>/dev/null
-	TMPDIR="$(abspath $(B))" $(B)/t_mods 2>/dev/null
-	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_mods_case > $(B)/t_mods_case.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "✗ 01_one's layer" $(B)/t_mods_case.log; then \
-	   cat $(B)/t_mods_case.log; echo "t_mods_case: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_mods_case: paths built with the program ID as asked break on a file system that tells cases apart, as expected"
-	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_mods_nopin > $(B)/t_mods_nopin.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_mods_nopin.log)" -ne 3 ]; then \
-	   cat $(B)/t_mods_nopin.log; echo "t_mods_nopin: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_mods_nopin: with the mod's copy always used the overlay's change is lost, as expected"
 	$(B)/t_mouse_route
 	@status=0; $(B)/t_mouse_route_swallow > $(B)/t_mouse_route_swallow.log 2>&1 || status=$$?; \
 	 if [ "$$status" -ne 1 ] || ! grep -q "press on the title bar .*✗" $(B)/t_mouse_route_swallow.log; then \
@@ -590,21 +564,7 @@ run: \
 	 if [ "$$status" -ne 1 ] || ! grep -q "✗ c with a row" $(B)/t_options_nocheck.log; then \
 	   cat $(B)/t_options_nocheck.log; echo "t_options_nocheck: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_options_nocheck: an option written without checking its originals is half applied, as expected"
-	$(B)/t_cheat_vm
-	$(B)/t_cheats
-	@for v in t_cheat_vm_flat t_cheats_norw; do status=0; $(B)/$$v > $(B)/$$v.log 2>&1 || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/$$v.log)" -ne 1 ]; then cat $(B)/$$v.log; echo "$$v: unexpected negative-control result ($$status)"; exit 1; fi; done; \
-	 echo "t_cheat_vm_flat / t_cheats_norw: the nesting ignored, the rewriter's words unchecked fail one each, as expected"
 	$(B)/t_padmap
-	$(B)/t_pchtxt 2>/dev/null
-	@status=0; $(B)/t_pchtxt_nocheck > $(B)/t_pchtxt_nocheck.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_pchtxt_nocheck.log)" -ne 5 ]; then \
-	   cat $(B)/t_pchtxt_nocheck.log; echo "t_pchtxt_nocheck: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_pchtxt_nocheck: patches over the rewritten code fail the five refusals, as expected"
-	@status=0; $(B)/t_pchtxt_oldflags > $(B)/t_pchtxt_oldflags.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_pchtxt_oldflags.log)" -ne 5 ]; then \
-	   cat $(B)/t_pchtxt_oldflags.log; echo "t_pchtxt_oldflags: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_pchtxt_oldflags: with every @flag skipped the five offset and flag checks fail, as expected"
 	$(B)/t_ns_text
 	@status=0; $(B)/t_ns_text_default > $(B)/t_ns_text_default.log 2>/dev/null || status=$$?; \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_ns_text_default.log)" -ne 2 ]; then \
@@ -714,31 +674,6 @@ run: \
 	   cat $(B)/t_tzrule_dev.log; echo "t_tzrule_dev: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_tzrule_dev: the rule ignored for the device zone, as expected"
 	$(B)/t_touch
-	$(B)/t_touchpad 2>/dev/null
-	@status=0; $(B)/t_touchpad_rehit > $(B)/t_touchpad_rehit.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "✗ slid off A" $(B)/t_touchpad_rehit.log; then \
-	   cat $(B)/t_touchpad_rehit.log; echo "t_touchpad_rehit: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_touchpad_rehit: a finger that takes the button it slides onto loses A, as expected"
-	@status=0; $(B)/t_touchpad_sensafter > $(B)/t_touchpad_sensafter.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "✗ sensitivity 0.5×" $(B)/t_touchpad_sensafter.log; then \
-	   cat $(B)/t_touchpad_sensafter.log; echo "t_touchpad_sensafter: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_touchpad_sensafter: a sensitivity applied after saturation never lets 0.5× turn at full speed, as expected"
-	@status=0; $(B)/t_touchpad_custom > $(B)/t_touchpad_custom.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "t_touchpad: 67 checks, 5 failed" $(B)/t_touchpad_custom.log; then \
-	   cat $(B)/t_touchpad_custom.log; echo "t_touchpad_custom: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_touchpad_custom: the default layout whatever the customization fails 5 layout checks, as expected"
-	@status=0; $(B)/t_touchpad_nowin > $(B)/t_touchpad_nowin.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "t_touchpad: 67 checks, 3 failed" $(B)/t_touchpad_nowin.log; then \
-	   cat $(B)/t_touchpad_nowin.log; echo "t_touchpad_nowin: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_touchpad_nowin: the window controls ignored put ZL under them on the three iPads that have them, as expected"
-	@status=0; $(B)/t_touchpad_ctlconnect > $(B)/t_touchpad_ctlconnect.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "t_touchpad: 67 checks, 1 failed" $(B)/t_touchpad_ctlconnect.log; then \
-	   cat $(B)/t_touchpad_ctlconnect.log; echo "t_touchpad_ctlconnect: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_touchpad_ctlconnect: hidden as soon as a controller connects, as before, fails the controller check, as expected"
-	@status=0; $(B)/t_touchpad_sigmoves > $(B)/t_touchpad_sigmoves.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "t_touchpad: 67 checks, 3 failed" $(B)/t_touchpad_sigmoves.log; then \
-	   cat $(B)/t_touchpad_sigmoves.log; echo "t_touchpad_sigmoves: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_touchpad_sigmoves: the stick's and the camera finger's places in the view's signature (a redraw on every move) fail 3, as expected"
 	$(B)/t_watchdog
 	@status=0; $(B)/t_watchdog_nobg > $(B)/t_watchdog_nobg.log 2>&1 || status=$$?; \
 	 if [ "$$status" -ne 1 ] || ! grep -q "✗ away" $(B)/t_watchdog_nobg.log; then \
@@ -753,7 +688,7 @@ $(GEN): ../../games/$(GAME)/game.json ../../tools/gen_game.py   # (without these
 # marker and the log stamps, each built again with UBSan (fatal) into build/ubsan; t_ubsan_on first shows the sanitizer is on and stops a run
 U = $(B)/ubsan
 UBSAN = -fsanitize=undefined -fno-sanitize-recover=undefined -g
-UBSAN_T = t_envfile t_cmdchan t_hid_script t_mods t_options t_romfs_validate t_padmap t_swkbd t_rundiag t_logstamp
+UBSAN_T = t_envfile t_cmdchan t_hid_script t_options t_romfs_validate t_padmap t_swkbd t_rundiag t_logstamp
 run-ubsan: $(U)/t_ubsan_on $(U)/t_ubsan_on_ub $(addprefix $(U)/,$(UBSAN_T))
 	$(U)/t_ubsan_on
 	@status=0; $(U)/t_ubsan_on_ub > $(U)/t_ubsan_on_ub.log 2>&1 || status=$$?; \
@@ -763,7 +698,6 @@ run-ubsan: $(U)/t_ubsan_on $(U)/t_ubsan_on_ub $(addprefix $(U)/,$(UBSAN_T))
 	TMPDIR="$(abspath $(U))" $(U)/t_envfile
 	TMPDIR="$(abspath $(U))" $(U)/t_cmdchan 2>/dev/null
 	$(U)/t_hid_script 2>/dev/null
-	TMPDIR="$(abspath $(U))" $(U)/t_mods 2>/dev/null
 	TMPDIR="$(abspath $(U))" $(U)/t_options 2>/dev/null
 	TMPDIR="$(abspath $(U))" $(U)/t_romfs_validate
 	$(U)/t_padmap
@@ -781,10 +715,8 @@ $(U)/t_envfile: t_envfile.c ../envfile.h | $(U)
 	clang -O1 -Wall -Werror $(UBSAN) -I.. -o $@ t_envfile.c
 $(U)/t_cmdchan: t_cmdchan.c ../front/cmdchan.c ../dm.h | $(U)
 	clang -O1 -Wall -Werror $(UBSAN) -I.. -o $@ t_cmdchan.c
-$(U)/t_hid_script: t_hid_script.c ../hle/hle_hid.c ../front/touchpad.c ../touchpad.h ../hle.h ../dm.h ../dm_input.h ../front.h | $(U)
-	clang -O1 -Wno-unused-function $(UBSAN) -I.. -o $@ t_hid_script.c ../front/touchpad.c
-$(U)/t_mods: t_mods.c ../game/mods.c ../dm.h ../game.h | $(U)
-	clang -O1 -Wall -Werror $(UBSAN) -I.. -o $@ t_mods.c
+$(U)/t_hid_script: t_hid_script.c ../hle/hle_hid.c ../hle.h ../dm.h ../dm_input.h ../front.h | $(U)
+	clang -O1 -Wno-unused-function $(UBSAN) -I.. -o $@ t_hid_script.c
 $(U)/t_options: t_options.c ../runtime/options.c ../dm.h | $(U)
 	clang -O1 -Wall -Werror $(UBSAN) -I.. -o $@ t_options.c
 $(U)/t_romfs_validate: t_romfs_validate.c ../runtime/romfs_validate.c | $(U)
@@ -902,24 +834,10 @@ $(B)/t_arbiter: t_arbiter.c t_condvar_stub.c ../hle/hle_thread.c ../dm.h ../runt
 	clang -O1 -Wno-unused-function -DDM_TEST_HOOKS -I.. -o $@ t_arbiter.c t_condvar_stub.c ../hle/hle_thread.c ../runtime/plat_apple.c
 $(B)/t_padmap: t_padmap.c ../gamepad_map.h ../dm_input.h | $(B)
 	clang -O1 -Wall -Werror -I.. -o $@ t_padmap.c
-$(B)/t_pchtxt: t_pchtxt.c ../game/pchtxt.c ../dm.h | $(B)
-	clang -O1 -Wall -I.. -o $@ t_pchtxt.c
-$(B)/t_pchtxt_nocheck: t_pchtxt.c ../game/pchtxt.c ../dm.h | $(B)
-	clang -O1 -Wall -Wno-unused-function -DDM_TEST_PCHTXT_NO_CHECK -I.. -o $@ t_pchtxt.c
-$(B)/t_pchtxt_oldflags: t_pchtxt.c ../game/pchtxt.c ../dm.h | $(B)
-	clang -O1 -Wall -Wno-unused-function -DDM_TEST_PCHTXT_OLD_FLAGS -I.. -o $@ t_pchtxt.c
 $(B)/t_ns_text: t_ns_text.m ../ns_text.h | $(B)
 	clang -O1 -Wall -fobjc-arc -I.. -o $@ t_ns_text.m -framework Foundation
 $(B)/t_ns_text_default: t_ns_text.m ../ns_text.h | $(B)
 	clang -O1 -Wall -fobjc-arc -DDM_TEST_NS_TEXT_DEFAULT_ENCODING -I.. -o $@ t_ns_text.m -framework Foundation
-$(B)/t_cheat_vm: t_cheat_vm.c ../game/cheat_vm.c ../cheat_vm.h | $(B)
-	clang -O1 -Wall -I.. -o $@ t_cheat_vm.c
-$(B)/t_cheat_vm_flat: t_cheat_vm.c ../game/cheat_vm.c ../cheat_vm.h | $(B)
-	clang -O1 -Wall -Wno-unused-function -DDM_TEST_CHEAT_FLAT_SKIP -I.. -o $@ t_cheat_vm.c
-$(B)/t_cheats: t_cheats.c ../game/cheats.c ../game/cheat_vm.c ../cheat_vm.h ../dm.h ../runtime/plat_apple.c | $(B)
-	clang -O1 -Wall -Wno-unused-function -I.. -o $@ t_cheats.c ../game/cheat_vm.c ../runtime/plat_apple.c
-$(B)/t_cheats_norw: t_cheats.c ../game/cheats.c ../game/cheat_vm.c ../cheat_vm.h ../dm.h ../runtime/plat_apple.c | $(B)
-	clang -O1 -Wall -Wno-unused-function -DDM_TEST_CHEATS_NO_REWRITE_CHECK -I.. -o $@ t_cheats.c ../game/cheat_vm.c ../runtime/plat_apple.c
 $(B)/t_padmap_posall: t_padmap.c ../gamepad_map.h ../dm_input.h | $(B)
 	clang -O1 -Wall -Werror -DDM_TEST_FACE_POS_ALL -I.. -o $@ t_padmap.c
 $(B)/t_mxseen: t_mxseen.c ../../ios/Sources/mxseen.h | $(B)
@@ -974,12 +892,6 @@ $(B)/t_rtld_ours: t_rtld.c ../runtime/loader.c ../hle/hle.c ../runtime/options.c
 	clang -O1 -Wno-deprecated-declarations -I.. -Wl,-dead_strip -DDM_TEST_RTLD_DEFAULT_OURS -o $@ t_rtld.c ../hle/hle.c ../runtime/options.c
 $(B)/t_rtld_order: t_rtld.c ../runtime/loader.c ../hle/hle.c ../runtime/options.c ../dm.h ../hle.h ../rodata_seal.h | $(B)
 	clang -O1 -Wno-deprecated-declarations -I.. -Wl,-dead_strip -DDM_TEST_RTLD_LOAD_ORDER -o $@ t_rtld.c ../hle/hle.c ../runtime/options.c
-$(B)/t_mods: t_mods.c ../game/mods.c ../dm.h ../game.h | $(B)
-	clang -O1 -Wall -Werror -I.. -o $@ t_mods.c
-$(B)/t_mods_case: t_mods.c ../game/mods.c ../dm.h ../game.h | $(B)
-	clang -O1 -Wall -Werror -DDM_TEST_MODS_CASE -I.. -o $@ t_mods.c
-$(B)/t_mods_nopin: t_mods.c ../game/mods.c ../dm.h ../game.h | $(B)
-	clang -O1 -Wall -Werror -DDM_TEST_MODS_NO_PIN -I.. -o $@ t_mods.c
 $(B)/t_thermal: t_thermal.m ../diag/thermal.m | $(B)
 	clang -O1 -Wall -fobjc-arc -o $@ t_thermal.m ../diag/thermal.m -framework Foundation
 $(B)/t_thermal_weak: t_thermal.m | $(B)
@@ -1099,12 +1011,12 @@ $(B)/t_hid_receipt: t_hid_receipt.c ../hle/hle_hid.c ../hle.h ../dm.h ../dm_inpu
 	clang -O1 -Wno-unused-function -I.. -o $@ t_hid_receipt.c
 $(B)/t_hid_receipt_oneslot: t_hid_receipt.c ../hle/hle_hid.c ../hle.h ../dm.h ../dm_input.h ../front.h | $(B)
 	clang -O1 -Wno-unused-function -DDM_TEST_RECEIPT_ONE_SLOT -I.. -o $@ t_hid_receipt.c
-$(B)/t_hid_script: t_hid_script.c ../hle/hle_hid.c ../front/touchpad.c ../touchpad.h ../hle.h ../dm.h ../dm_input.h ../front.h | $(B)
-	clang -O1 -Wno-unused-function -I.. -o $@ t_hid_script.c ../front/touchpad.c
-$(B)/t_hid_script_nocircle: t_hid_script.c ../hle/hle_hid.c ../front/touchpad.c ../touchpad.h ../hle.h ../dm.h ../dm_input.h ../front.h | $(B)
-	clang -O1 -Wno-unused-function -DDM_TEST_HID_NO_CIRCLE -I.. -o $@ t_hid_script.c ../front/touchpad.c
-$(B)/t_hid_script_norstick: t_hid_script.c ../hle/hle_hid.c ../front/touchpad.c ../touchpad.h ../hle.h ../dm.h ../dm_input.h ../front.h | $(B)
-	clang -O1 -Wno-unused-function -DDM_TEST_HID_NO_RSTICK -I.. -o $@ t_hid_script.c ../front/touchpad.c
+$(B)/t_hid_script: t_hid_script.c ../hle/hle_hid.c ../hle.h ../dm.h ../dm_input.h ../front.h | $(B)
+	clang -O1 -Wno-unused-function -I.. -o $@ t_hid_script.c
+$(B)/t_hid_script_nocircle: t_hid_script.c ../hle/hle_hid.c ../hle.h ../dm.h ../dm_input.h ../front.h | $(B)
+	clang -O1 -Wno-unused-function -DDM_TEST_HID_NO_CIRCLE -I.. -o $@ t_hid_script.c
+$(B)/t_hid_script_norstick: t_hid_script.c ../hle/hle_hid.c ../hle.h ../dm.h ../dm_input.h ../front.h | $(B)
+	clang -O1 -Wno-unused-function -DDM_TEST_HID_NO_RSTICK -I.. -o $@ t_hid_script.c
 # VP9 movies need libvpx (brew install libvpx), as the host build does (host/Makefile VPX)
 VPX ?= /opt/homebrew/opt/libvpx
 $(B)/t_movie: t_movie.c ../hle/hle_movie.c ../runtime/hstack.S ../runtime/hstack.c ../media/movie_av.m ../movie_av.h ../media/movie_webm.c ../movie_webm.h ../hle.h ../dm.h | $(B)
@@ -1113,20 +1025,6 @@ $(B)/t_movie: t_movie.c ../hle/hle_movie.c ../runtime/hstack.S ../runtime/hstack
 $(B)/t_movie_evcopy: t_movie.c ../hle/hle_movie.c ../runtime/hstack.S ../runtime/hstack.c ../media/movie_av.m ../movie_av.h ../media/movie_webm.c ../movie_webm.h ../hle.h ../dm.h | $(B)
 	clang -O1 -Wall -Wno-unused-function -I.. -isystem $(VPX)/include -fobjc-arc -DDM_TEST_EVENTS_COPIED -o $@ t_movie.c ../media/movie_av.m ../media/movie_webm.c ../runtime/hstack.S ../runtime/hstack.c $(VPX)/lib/libvpx.a \
 		-framework Foundation -framework AVFoundation -framework CoreMedia -framework CoreVideo
-$(B)/t_touchpad: t_touchpad.c ../front/touchpad.c ../touchpad.h ../dm.h ../dm_input.h | $(B)
-	clang -O1 -Wall -Werror -I.. -o $@ t_touchpad.c
-$(B)/t_touchpad_rehit: t_touchpad.c ../front/touchpad.c ../touchpad.h ../dm.h ../dm_input.h | $(B)
-	clang -O1 -Wall -Werror -DDM_TEST_TP_REHIT -I.. -o $@ t_touchpad.c
-$(B)/t_touchpad_sensafter: t_touchpad.c ../front/touchpad.c ../touchpad.h ../dm.h ../dm_input.h | $(B)
-	clang -O1 -Wall -Werror -DDM_TEST_TP_SENS_AFTER -I.. -o $@ t_touchpad.c
-$(B)/t_touchpad_custom: t_touchpad.c ../front/touchpad.c ../touchpad.h ../dm.h ../dm_input.h | $(B)
-	clang -O1 -Wall -Werror -DDM_TEST_TP_CUSTOM_IGNORED -I.. -o $@ t_touchpad.c
-$(B)/t_touchpad_nowin: t_touchpad.c ../front/touchpad.c ../touchpad.h ../dm.h ../dm_input.h | $(B)
-	clang -O1 -Wall -Werror -DDM_TEST_TP_NO_WINDOW -I.. -o $@ t_touchpad.c
-$(B)/t_touchpad_ctlconnect: t_touchpad.c ../front/touchpad.c ../touchpad.h ../dm.h ../dm_input.h | $(B)
-	clang -O1 -Wall -Werror -DDM_TEST_TP_CTL_ON_CONNECT -I.. -o $@ t_touchpad.c
-$(B)/t_touchpad_sigmoves: t_touchpad.c ../front/touchpad.c ../touchpad.h ../dm.h ../dm_input.h | $(B)
-	clang -O1 -Wall -Werror -DDM_TEST_TP_SIG_MOVES -I.. -o $@ t_touchpad.c
 $(B)/t_options: t_options.c ../runtime/options.c ../dm.h | $(B)
 	clang -O1 -Wall -Werror -I.. -o $@ t_options.c
 $(B)/t_options_nocheck: t_options.c ../runtime/options.c ../dm.h | $(B)

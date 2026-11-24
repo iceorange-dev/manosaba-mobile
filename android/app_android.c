@@ -291,7 +291,6 @@ static void boot(ANativeActivity *a) {
     setenv("DM_ROMFS", romfs, 0); setenv("DM_SAVE", save, 0); setenv("DM_TEMP", temp, 0); setenv("DM_CACHE", cache, 0);
     { char pc[700]; snprintf(pc, sizeof pc, "%s", cache); char *s = strrchr(pc, '/'); if (s) { snprintf(s, sizeof pc - (size_t)(s - pc), "/vk_pipeline_cache.bin"); setenv("DM_VK_PCACHE", pc, 0); } }   // (308e: the app's cache folder)
     { struct stat st; if (!stat(font, &st) && S_ISDIR(st.st_mode)) setenv("DM_SYSFONT", font, 0); }
-    { char m[600]; struct stat st; snprintf(m, sizeof m, "%s/mods", g_ext); if (!stat(m, &st) && S_ISDIR(st.st_mode)) setenv("DM_MODS", m, 0); }
     setenv("DM_AUDIO", "1", 0);   // the app plays sound (the adb shell's host plays to the silent sink unless asked)
     if (!getenv("DM_LANG")) {   // the device's language (Android gives the language and the region here; lang.h takes TW / HK / MO as Traditional)
         AConfiguration *c = AConfiguration_new(); AConfiguration_fromAssetManager(c, a->assetManager);

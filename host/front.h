@@ -25,4 +25,3 @@ void dm_touch_screen(int w, int h);
 // commits as usual. err = the first failing errno (ENOSPC = 28). Called on the game thread; the front end must not block (switch to the main thread)
 void front_save_failed(int err);
 // A key newly pressed on a game controller (host/front/gamepad.m; weak no-op there): the iOS front end hides the on-screen controls (plan item 171)
-void dm_front_controller_key(void);

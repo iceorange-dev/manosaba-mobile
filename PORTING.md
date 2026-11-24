@@ -5,7 +5,6 @@ This is the workflow that took manosaba from a dump to running on iPhone. Each s
 ```
 your console ──► ExeFS + RomFS + system fonts            (data/switch/…)
                   │
-tools/new_game.py ─► games/<id>/game.json, rules.py
 tools/build_product.sh ─► product (rewritten modules)   ─► verify/regress.sh
 make -C host GAME=<id> ─► dmhost
 shaders: capture ─► shmap_from_capture.py ─► dmsh_build.py ─► c1_guard.py
@@ -63,15 +62,10 @@ serves them as `nn::pl` shared fonts; many games render all their text with them
 
 Keys, dumps and console backups stay out of the repository (`.gitignore` covers `keys/`, `dump/`, `work/` …).
 
-## 2. Create the game directory
+## 2. The game directory
 
-```sh
-DM_ROOT=~/dm-work python3 tools/new_game.py <id> $DM_ROOT/data/switch/<id>-<ver>/ExeFS $DM_ROOT/data/switch/<id>-<ver>/RomFS \
-    --title "<title>" --version <ver> --language <lang>
-```
-
-It reads the program ID (`main.npdm`), `main`'s build ID, the modules and the RomFS checks, and writes `games/<id>/game.json` and an empty
-`rules.py`. Review `language`, `screen` and `save_sync` ([games/README.md](games/README.md) explains every field).
+`games/manosaba/`: the profile `game.json` (every field in [games/README.md](games/README.md)), the rewriter's rules `rules.py` and the
+game's host code.
 
 ## 3. Rewrite the modules and verify
 

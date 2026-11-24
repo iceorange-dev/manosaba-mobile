@@ -21,11 +21,10 @@ def load(path):
     if g.get('alpha_test', 'off') not in ('on', 'off'): sys.exit(f'{path}: alpha_test must be "on" or "off" (omitted: off)')
     if g.get('present_consume', 'newest') not in ('newest', 'fifo'): sys.exit(f'{path}: present_consume must be "newest" or "fifo"')
     if not isinstance(g.get('virtual_cores', False), bool): sys.exit(f'{path}: virtual_cores must be true or false')
-    if g.get('touch', 'screen') not in ('screen', 'pad'): sys.exit(f'{path}: touch must be "screen" or "pad"')
     langs = g.get('languages', [g['language']])   # the game's own (plan item 170): nn::settings language codes; the device's language is taken among them
     if not isinstance(langs, list) or not langs or any(l not in LANG_CODES for l in langs) or g['language'] not in langs:
         sys.exit(f'{path}: languages must list nn::settings language codes ({" ".join(LANG_CODES)}), the profile\'s language among them')
-    n = g.get('npdm', {})   # from the game's main.npdm (tools/new_game.py fills it): META SystemResourceSize, the ThreadInfo kernel capability's priorities
+    n = g.get('npdm', {})   # from the game's main.npdm: META SystemResourceSize, the ThreadInfo kernel capability's priorities
     if not isinstance(n, dict) or set(n) - {'system_resource_size', 'thread_priority'} or not re.fullmatch(r'0x[0-9a-fA-F]+', str(n.get('system_resource_size', '0x0'))) \
        or not (isinstance(n.get('thread_priority', [0, 0]), list) and len(n.get('thread_priority', [0, 0])) == 2 and all(isinstance(v, int) and 0 <= v < 64 for v in n.get('thread_priority', [0, 0]))):
         sys.exit(f'{path}: npdm must be {{"system_resource_size": "0x..", "thread_priority": [highest, lowest]}}')
@@ -61,7 +60,6 @@ def write_c(g, out):
           '    .nvn_depth_mode = %d,' % (1 if g['depth_mode'] == 'near_is_zero' else 0),
           '    .present_fifo = %d,' % (g.get('present_consume', 'newest') == 'fifo'),
           '    .virtual_cores = %d,' % bool(g.get('virtual_cores', False)),
-          '    .touch_pad = %d,' % (g.get('touch', 'screen') == 'pad'),
           '    .npdm_sysres = %s, .npdm_prio_hi = %d, .npdm_prio_lo = %d,' % ((g.get('npdm', {}).get('system_resource_size', '0x0'),) + tuple(g.get('npdm', {}).get('thread_priority', [0, 0]))),
           f'    .romfs_files = romfs_files, .romfs_nfiles = {len(files)},',
           f'    .romfs_tree = {cstr(r["tree"]) if r.get("tree") else "0"}, .romfs_tree_files = {r.get("tree_files", 0)}, .romfs_tree_bytes = {r.get("tree_bytes", 0)}LL,',

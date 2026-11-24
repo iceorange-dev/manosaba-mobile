@@ -8,9 +8,9 @@ A new item takes the next number (332). How these two files are kept: [DEVELOPME
 
 The repository is manosaba's alone, on iOS and Android, since 2026-11-24 (the tag `totk-last`: the last commit with the other game). Each
 part below goes with its tests, its switches' rows and its records, after a manosaba run before and after it. The open items about these
-parts (271, 220, 192, 320g, 320e, 318, 67) stay further down until their part goes.
+parts (271, 220, 320g, 320e, 318, 67) stay further down until their part goes.
 
-- 328 · shared code only that game reached, by its gate: the profile's `touch` pad and `virtual_cores`; the code options; the lists
+- 328 · shared code only that game reached, by its gate: the profile's `virtual_cores`; the code options; the RomFS overlay; the lists
   manosaba has none of (`fout.tsv`, `border_msl.txt`, `lodbias_msl.txt`); the wide picture; the translation thread.
 - 329 · what a longer manosaba run never executes (the Mac host's coverage; its prologue and trial 1's debate ran 44 % of the functions):
   audren, nfp, codec, motion, VP9 movies. A Mac run does not clear a path that depends on the GPU (`bcdec` is the phones').
@@ -43,12 +43,8 @@ parts (271, 220, 192, 320g, 320e, 318, 67) stay further down until their part go
 
 ## The user's choices
 
-- 192 · touch controls after Touchable (its 8-way D-pad, Liquid Glass, face-button slides and layout; the stick, the camera drag and opacity
-  are open).
 - 280 · manosaba's characters at fewer pixels per unit in the RomFS's `resources.assets` (PR #2's `patch_character_ppu.py`: 1500x3000 →
   1125x2250): an asset change.
-- 331 · kept or removed: mods, cheats and pchtxt patches (`host/game/mods.c`, `cheats.c`, `cheat_vm.c`, `pchtxt.c`); `tools/new_game.py` and
-  PORTING.md's parts for another game (its §§ 0, 1 and 5 are what the README's Getting started points to); the repository's name.
 
 ## Other hardware
 

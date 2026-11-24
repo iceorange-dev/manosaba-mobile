@@ -17,7 +17,6 @@ int front_text_input(const char *title, const char *sub, const char *guide, cons
     (void)title; (void)sub; (void)guide; (void)initial; (void)max_chars; (void)out; (void)out_cap; return -1;   // (no window: nothing shown)
 }
 void front_save_failed(int err) { LOG("[red] a save transaction failed (errno %d); the committed save is unchanged", err); }
-void dm_front_controller_key(void) {}
 int dm_main(int argc, char **argv);   // host/runtime/main.c, built with -Dmain=dm_main (the app's library calls it from a thread of its own)
 int main(int argc, char **argv) {
     if (dm_binder_pool_start()) LOG("[red] no binder thread pool: movies' decoders will not answer");   // binder_pool.h (an app's process has one)

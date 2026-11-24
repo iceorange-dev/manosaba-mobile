@@ -10,7 +10,7 @@
 			<key>Title</key>
 			<string>Graphics</string>
 			<key>FooterText</key>
-			<string>30 fps halves the work per second and keeps the phone cooler. Hold 30 fps when hot: from the thermal state Serious (and in Low Power Mode, whatever the switch) the frame rate is held at 30, as iOS slows the phone down then anyway; off, the setting stays and the phone runs warmer. Frame rate and MetalFX take effect when you return to the game; render resolution at the next launch, and only in games that support it. MetalFX sharpens the picture when it is scaled up to the screen. iOS always shows frames in step with the display, so there is no V-Sync switch.</string>
+			<string>30 fps halves the work per second and keeps the phone cooler. Hold 30 fps when hot: from the thermal state Serious (and in Low Power Mode, whatever the switch) the frame rate is held at 30, as iOS slows the phone down then anyway; off, the setting stays and the phone runs warmer. Frame rate and MetalFX take effect when you return to the game; render resolution at the next launch, and only in games that support it. MetalFX sharpens the picture when it is scaled up to the screen. iOS always shows frames in step with the display, so there is no V-Sync switch. In the game, a three-finger tap opens these settings.</string>
 		</dict>
 		<dict>
 			<key>Type</key>
@@ -87,100 +87,6 @@
 			<string>dm.widen</string>
 			<key>DefaultValue</key>
 			<false/>
-		</dict>
-		<dict>
-			<key>Type</key>
-			<string>PSGroupSpecifier</string>
-			<key>Title</key>
-			<string>Touch Camera</string>
-			<key>FooterText</key>
-			<string>For games played with the on-screen controls: how fast a swipe on the right half turns the camera (1× is the default; a fast swipe turns at full speed whatever the setting), and which directions are reversed.</string>
-		</dict>
-		<dict>
-			<key>Type</key>
-			<string>PSMultiValueSpecifier</string>
-			<key>Title</key>
-			<string>Sensitivity</string>
-			<key>Key</key>
-			<string>dm.look_sensitivity</string>
-			<key>DefaultValue</key>
-			<real>1</real>
-			<key>Titles</key>
-			<array>
-				<string>0.25×</string>
-				<string>0.5×</string>
-				<string>0.75×</string>
-				<string>1×</string>
-				<string>1.25×</string>
-				<string>1.5×</string>
-				<string>2×</string>
-				<string>2.5×</string>
-				<string>3×</string>
-			</array>
-			<key>Values</key>
-			<array>
-				<real>0.25</real>
-				<real>0.5</real>
-				<real>0.75</real>
-				<real>1</real>
-				<real>1.25</real>
-				<real>1.5</real>
-				<real>2</real>
-				<real>2.5</real>
-				<real>3</real>
-			</array>
-		</dict>
-		<dict>
-			<key>Type</key>
-			<string>PSToggleSwitchSpecifier</string>
-			<key>Title</key>
-			<string>Invert Horizontal</string>
-			<key>Key</key>
-			<string>dm.look_invert_x</string>
-			<key>DefaultValue</key>
-			<false/>
-		</dict>
-		<dict>
-			<key>Type</key>
-			<string>PSToggleSwitchSpecifier</string>
-			<key>Title</key>
-			<string>Invert Vertical</string>
-			<key>Key</key>
-			<string>dm.look_invert_y</string>
-			<key>DefaultValue</key>
-			<false/>
-		</dict>
-		<dict>
-			<key>Type</key>
-			<string>PSGroupSpecifier</string>
-			<key>Title</key>
-			<string>On-screen Controls</string>
-			<key>FooterText</key>
-			<string>In the game, a three-finger tap (or the menu button between − and +) opens these settings; the controls' layout is edited there.</string>
-		</dict>
-		<dict>
-			<key>Type</key>
-			<string>PSMultiValueSpecifier</string>
-			<key>Key</key>
-			<string>dm.touch_opacity</string>
-			<key>Title</key>
-			<string>Opacity</string>
-			<key>DefaultValue</key>
-			<real>1</real>
-			<key>Titles</key>
-			<array>
-				<string>100 %</string>
-				<string>75 %</string>
-				<string>50 %</string>
-				<string>30 %</string>
-			</array>
-			<key>Values</key>
-			<array>
-				<real>1</real>
-				<real>0.75</real>
-				<real>0.5</real>
-				<real>0.3</real>
-			</array>
 		</dict>
 		<dict>
 			<key>Type</key>

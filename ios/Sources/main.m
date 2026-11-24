@@ -241,7 +241,7 @@ static void boot_prepare(NSString *romfs) {
     setenv("DM_ROMFS", romfs.fileSystemRepresentation, 0);
     NSString *font = sysfont_locate(); if (font) setenv("DM_SYSFONT", font.fileSystemRepresentation, 0);
     exclude_from_backup(romfs); exclude_from_backup(font);
-    overlay_locate(romfs);   // before the host starts: host/game/mods.c puts the mods' layers in front of it
+    overlay_locate(romfs);   // before the host starts
     setenv("DM_SAVE", [doc stringByAppendingPathComponent:@"save"].fileSystemRepresentation, 0);
     setenv("DM_TEMP", [doc stringByAppendingPathComponent:@"temp"].fileSystemRepresentation, 0);
     // The game's cache storage (Tears of the Kingdom; hle_fs.c): in Library/Caches, which the system may empty while the app is not running, as a
@@ -249,8 +249,6 @@ static void boot_prepare(NSString *romfs) {
     // again (933,995 red lines in 10 s on the first iPhone run)
     { NSString *cs = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES)[0] stringByAppendingPathComponent:@"cache_storage"];
       [fm createDirectoryAtPath:cs withIntermediateDirectories:YES attributes:nil error:nil]; setenv("DM_CACHE", cs.fileSystemRepresentation, 0); }
-    { NSString *mods = [doc stringByAppendingPathComponent:@"mods"]; BOOL dir = NO;
-      if ([fm fileExistsAtPath:mods isDirectory:&dir] && dir) setenv("DM_MODS", mods.fileSystemRepresentation, 0); }
     setenv("DM_NVN_SHMAP", [res stringByAppendingPathComponent:@"shader_map.tsv"].fileSystemRepresentation, 0);
     // The game's language from the app's own language setting (plan item 170: Settings > Apps > <game> > Language, offered for the languages the app
     // declares in CFBundleLocalizations, ios/tools/project_lang.py): the device's first language, when the game has it; else the profile's own

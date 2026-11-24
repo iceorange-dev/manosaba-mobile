@@ -22,8 +22,6 @@ void svc_thread_dump(void) { g_threads++; }
 long dm_memsnap_write(const char *path, long frame) { (void)path; (void)frame; return 0; }
 void hlecount_flush(void) { g_hlecount++; }
 void dm_host_shutdown(const char *why) { (void)why; g_quit++; }
-static char g_pt[32]; int tp_selftest_now(const char *name) { if (strcmp(name, "look")) return 0; snprintf(g_pt, sizeof g_pt, "%s", name); return 1; }
-static char g_ps[64]; static void padshot(const char *path) { snprintf(g_ps, sizeof g_ps, "%s", path); }
 
 static int parse_ok(const char *line, int kind, uint32_t mask, long v, const char *path) {
     dm_cmd c; const char *why; if (cmd_parse(line, &c, &why)) return 0;
@@ -50,10 +48,6 @@ int main(void) {
     { dm_cmd c; const char *why; int ok = parse_ok("texdump td_%d.png", CMD_TEXDUMP, 0, 0, "td_%d.png") && parse_bad("texdump", "path");
       if (ok && !cmd_parse("texdump t%d.png", &c, &why)) cmd_run(&c);
       CHECK(ok && !strcmp(g_td, "t%d.png"), "texdump <path> parses, runs and needs a path"); }
-    { dm_cmd c; const char *why; int ok = parse_ok("padtest look", CMD_PADTEST, 0, 0, "look") && parse_bad("padtest", "test name") && parse_bad("padshot", "path");
-      if (ok && !cmd_parse("padtest look", &c, &why)) cmd_run(&c);
-      dm_padshot_hook = padshot; if (ok && !cmd_parse("padshot pad.png", &c, &why)) cmd_run(&c);
-      CHECK(ok && !strcmp(g_pt, "look") && !strcmp(g_ps, "pad.png"), "padtest <name> and padshot <path> parse, run and need their argument"); }
     CHECK(parse_ok("threads", CMD_THREADS, 0, 0, NULL) && parse_ok("hlecount", CMD_HLECOUNT, 0, 0, NULL) && parse_ok("quit", CMD_QUIT, 0, 0, NULL), "threads / hlecount / quit");
     CHECK(parse_ok("", CMD_NONE, 0, 0, NULL) && parse_ok("   ", CMD_NONE, 0, 0, NULL) && parse_ok("# key A", CMD_NONE, 0, 0, NULL), "blank lines and comments do nothing");
     CHECK(parse_bad("key Q 10", "unknown key") && parse_bad("down", "key name") && parse_bad("key A 10 x", "key <name>"), "an unknown key, no key, an extra word");

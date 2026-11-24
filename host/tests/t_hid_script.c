@@ -8,7 +8,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include HLE_HID_SOURCE
-#include "../touchpad.h"   // touchpad.c is linked in: its dm_touchpad_read replaces hle_hid.c's weak default
 module_t g_mod[MAX_MOD]; int g_nmod;
 uint64_t g_t0_ns;
 void hle_bind_system_event(void *g, int autoclear) { (void)g; (void)autoclear; }
@@ -68,22 +67,18 @@ int main(void) {
     hid_cmd_keys(0, DM_BTN_ZR); { NpadState s = rd(); CHECK(s.buttons == DM_BTN_STICK_L_RIGHT && s.lx == 32767, "... ZR released, the stick still held"); }
     hid_cmd_keys(0, PK_LSR); { NpadState s = rd(); CHECK(s.buttons == 0 && s.lx == 0, "... all released"); }
 
-    // On-screen controls (touchpad.c): buttons ORed; their stick after the front end's, before the controller's
-    { NpadState s; uint64_t lb; int32_t la[4];
-      CHECK(hle_hid_last(&lb, &la[0], &la[1], &la[2], &la[3]) && lb == 0 && !la[0], "hle_hid_last: what the game last read (nothing held)");
-      tp_layout(844, 390, 47, 0, 47, 21, 0); float sx, sy, ax, ay, r; tp_find("stick", &sx, &sy, &r); tp_find("A", &ax, &ay, &r);
-      at(20); tp_touch(1, TP_DOWN, ax, ay); s = rd(); CHECK(s.buttons == DM_BTN_A && s.lx == 0, "on-screen A");
-      dm_pad_set(DM_BTN_B, 1000, 0, 0, 0); tp_touch(2, TP_DOWN, sx, sy); tp_touch(2, TP_MOVE, sx, sy - 200); at(20.05); s = rd();
-      CHECK(s.buttons == (DM_BTN_A | DM_BTN_B | DM_BTN_STICK_L_UP) && s.lx == 0 && s.ly == 32767, "with a controller: buttons ORed, the on-screen stick before the controller's");
-      CHECK(hle_hid_last(&lb, &la[0], &la[1], &la[2], &la[3]) && lb == (DM_BTN_A | DM_BTN_B | DM_BTN_STICK_L_UP) && la[1] == 32767, "hle_hid_last: that state");
-      dm_input_set(0, -5, 6, 0, 0); at(20.1); s = rd(); CHECK(s.lx == -5 && s.ly == 6, "the front end's stick before the on-screen one");
+    // The front end's stick before a controller's; a keyboard diagonal onto the circle
+    { NpadState s;
+      dm_pad_set(DM_BTN_B, 1000, 0, 0, 0); at(20.05); s = rd();
+      CHECK(s.buttons == DM_BTN_B && s.lx == 1000 && s.ly == 0, "a controller: its button and its stick");
+      dm_input_set(0, -5, 6, 0, 0); at(20.1); s = rd(); CHECK(s.lx == -5 && s.ly == 6, "the front end's stick before the controller's");
       dm_input_set(0, 32767, -32767, -32768, 0); s = rd();
       CHECK(s.lx == 23169 && s.ly == -23169 && s.rx == -32767 && s.ry == 0, "a keyboard diagonal onto the circle, an axis at -32768 to -32767");
       { double r = sqrt((double)s.lx * s.lx + (double)s.ly * s.ly); CHECK(r <= 32767 && r > 32765 && s.lx == -s.ly, "... its length within 2 of 32,767, the direction kept"); }
       dm_input_set(0, 20000, 20000, 0, 0); s = rd(); CHECK(s.lx == 20000 && s.ly == 20000, "a stick inside the circle stays as it is");
-      dm_input_set(0, 0, 0, 0, 0); tp_touch(1, TP_UP, 0, 0); tp_touch(2, TP_UP, 0, 0); at(20.15); s = rd();
-      CHECK(s.buttons == DM_BTN_B && s.lx == 1000 && s.ly == 0, "fingers lifted: the controller's again");
-      dm_pad_set(0, 0, 0, 0, 0); tp_enable(0); rd(); }
+      dm_input_set(0, 0, 0, 0, 0); at(20.15); s = rd();
+      CHECK(s.buttons == DM_BTN_B && s.lx == 1000 && s.ly == 0, "the front end's stick released: the controller's again");
+      dm_pad_set(0, 0, 0, 0, 0); rd(); }
 
     opmode = 0; { NpadState s; uint32_t id = 0x20; dm_input_set(DM_BTN_L, 0, 0, 0, 0); h_hid_GetHandheld(&s, &id);
                   CHECK(s.attributes == 1 && s.buttons == DM_BTN_L, "handheld mode: handheld controller connected"); }

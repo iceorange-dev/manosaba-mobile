@@ -35,7 +35,7 @@ version is reported to end with an error now and then in long sessions too.
 On Android (plan item 301, under way): on a Redmi K100 Pro Max (Android 17) manosaba runs as an app of this repository's own (no Android SDK:
 `android/tools/apk.py` writes and signs the APK) at 60 fps, with sound (AAudio), touch, game controllers and saves, drawn by a Vulkan backend
 of its own (`gfx/nvn/vk/`, the game's shaders from the same translation as Metal's): the title, the prologue and the first trial checked so far,
-at 60 fps; what is left (the on-screen controls among it) is plan item 301 in [docs/plan.md](docs/plan.md).
+at 60 fps; what is left is plan item 301 in [docs/plan.md](docs/plan.md).
 
 ## How it works
 

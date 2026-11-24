@@ -79,10 +79,8 @@ the wide picture) and `cloud/` the save sync. The headers stay in `host/`, which
 | `front.h`, `front/front_mac.m` | Front end interface; the Mac front end (headless, or a window with `DM_WINDOW=1`) |
 | `front/app_mac.m` | Mac app form: prepares what the command line would set when packaged as an `.app` |
 | `front/gamepad.m` | Game controllers (GameController framework) → Switch controller input, shared by Mac and iOS |
-| `front/touchpad.c`, `touchpad.h` | On-screen controls with a drag-to-look camera (after BotWRecomp's `touch.cpp`) for games with game.json `touch` "pad": the layout, finger rules and the controller they make; drawn and fed by the iOS front end, read by `hle/hle_hid.c` |
 | `cloud/cloud.m`, `cloud.h`, `cloud/cloudsync.c` | iCloud save sync of the profile's `save_sync` files (Mac app and iOS; file-level core in `cloud/cloudsync.c`) |
 | `runtime/options.c` | Code options (`DM_OPTIONS`, or the product's `options.default`): changes the rewriter lists in `<module>.options.tsv`, applied before the code is sealed (Mac) |
-| `game/mods.c` | User mod folders (`DM_MODS`): each mod's RomFS (mod folders or the Atmosphère layout) as an overlay layer in front of the game's |
 | `front/cmdchan.c` | Live command channel (`DM_CMD`): keys, waits, screenshots, pass records, thread dump, memory snapshot, quit, while the game runs |
 | `runtime/crash.c` | Crash handler: guest backtrace, thread dump, watchdog (`DM_WATCH`), the frames-stopped dump (`DM_FREEZE_DUMP`), memory at registers on a crash (`DM_CRASH_MEM`) |
 | `diag/diag.c` | Diagnostics: probes (`DM_PROBE`, `DM_THROWLOG`), store watchpoint on all threads (`DM_WATCHPOINT`), boot timeline (`DM_BOOTPROF`), guest sampling (`DM_SAMPLE`), perf record |
@@ -106,20 +104,14 @@ the wide picture) and `cloud/` the save sync. The headers stay in `host/`, which
 | `DM_CMD=<file>` | Live command channel: lines appended to the file run while the game runs (`key A 200`, `down ZR` / `up ZR`, `wait <frames>`, `sleep <ms>`, `shot <png>`, `passdump <frames>`, `threads`, `memsnap <path>`, `hlecount`, `heaps`, `heap <addr>`, `quit`; `#` comments); a line runs once its newline is written. See `front/cmdchan.c` |
 | `DM_OPTIONS=<a,b>` or `none` | The product's code options to apply (default: its `options.default`); manosaba's product has none |
 | `DM_ASPECT=<w>:<h>`, `<w>x<h>`, a ratio (1 to 4) or `window` | Mac, Tears of the Kingdom with the option `aspect`: start with the wide picture on at that ratio (`window`: the window's shape, followed); unset, View → Wide Picture (⌘4) switches 21:9. The cameras' ratio is widened and the picture stretched over a window of that shape; the HUD is stretched with it (`game/aspect.c`, `games/totk/frame_step.c`, plan item 154) |
-| `DM_CHEATS=<file>`, `DM_CHEATS_ON=all` or names | Mac: an Atmosphère cheat file for main; stores only into main's code written at load (refused over rewritten code), the rest run about 30 times a second (`game/cheats.c`, plan item 150b) |
 | `DM_FACE_BUTTONS=position` | Controllers other than Nintendo's: face buttons by position (right A, bottom B, top X, left Y) instead of by the system's letters (`gamepad_map.h`, plan item 149) |
 | `DM_PAD_LOG=1` | Log each haptics engine's starts and stops (`front/gamepad.m`, plan item 67c) |
 | `DM_PAD_MOTION_LOG=1` | Log a controller's motion as GameController reports it, twice a second (gravity, user acceleration, rotation): for measuring its axes before they feed the six-axis sensor (plan item 67d) |
-| `DM_PCHTXT=<file>[:<file>...]` | Mac: community ExeFS patches in pchtxt form, applied at load to the module their `@nsobid` names; one touching rewritten code is refused whole (`game/pchtxt.c`, plan item 150a) |
 | `DM_PHONE_HAPTICS=0` | iOS: no pulses on the phone's own haptics when no controller has haptics (plan item 67c) |
 | `DM_PROCON=0` | Mac: leave a Switch Pro Controller to GameController (no IMU or HD rumble over its HID device, `front/procon_mac.m`, plan item 67b) |
-| `DM_MODS=<dir>` | Mods: each entry's `romfs`, `contents/<program id>/romfs` or `atmosphere/contents/<program id>/romfs` (or loose files) in front of the RomFS, in name order, the first winning; names starting with `.` or `-` are off; code mods are not applied (iOS: `Documents/mods`) |
 | `DM_TEST_BG=<s>,<len>[;...]` | The iPhone's trip to the background and back at those times (focus, audio, guest clock, graphics), on the Mac too; `tools/lifecycle_check.py` judges the log |
 | `DM_LOG_TIME=1` | UTC milliseconds at the start of every log line (`logstamp.h`; on by default in the iOS app, where `DM_LOG_TIME=0` turns it off) |
 | `DM_PERF_LINE=1` | With a window: the game's frames per second, those reaching the screen and the GPU time per frame in its title, twice a second (`gfx/nvn/nvn_perfline.h`; the iOS app's "Show frame rate") |
-| `DM_TOUCH_LOOK=<s>[,x][,y]` | On-screen controls: the camera swipe's sensitivity (0.25-3×, before the turn speed saturates), `x` / `y` invert that axis (`front/touchpad.c`; the iOS Settings page's Touch Camera) |
-| `DM_TOUCH=pad` or `screen` | iOS: on-screen controls or the game's touchscreen, whatever the profile's `touch` says |
-| `DM_TEST_TOUCHPAD=<test>[:<s>][,...]` | On-screen controls checked in the running game (the Mac too, on an 844x390 layout): `check` (BotWRecomp's input checks against the controller the game read), `hide` (the eye), `look` (a camera drag only, for shots) |
 | `DM_WATCH=<s>` | Stop after that many seconds (exit 142) |
 | `DM_FREEZE_DUMP=<s>` | Frames stopped that many seconds (default 6) after the first present, in the foreground: one dump of what every thread waits on per freeze and a line when frames come back; the game goes on (on by default, 0 turns it off; `DM_TEST_PRESENT_STALL=<frame>:<s>` holds a present on purpose) |
 | `DM_LANG` | Override the profile's language |

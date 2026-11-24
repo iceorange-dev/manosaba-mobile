@@ -24,7 +24,7 @@ CFLAGS = -O1 -g -fPIC -Wall -Wno-unused-function -Wno-format -Wno-deprecated-dec
 # The shared host sources Android takes: every service, the runtime, what changes the game, the portable diagnostics and front-end helpers
 HOST_SRC = $(sort $(wildcard $(H)/hle/hle_*.c)) $(H)/hle/hle.c \
 	$(addprefix $(H)/runtime/,crash.c hstack.c loader.c main.c options.c romfs_parts.c romfs_validate.c thread.c entry.S hstack.S) \
-	$(sort $(wildcard $(H)/game/*.c)) $(addprefix $(H)/diag/,diag.c memsnap.c sdktest.c) $(addprefix $(H)/front/,cmdchan.c touchpad.c) \
+	$(sort $(wildcard $(H)/game/*.c)) $(addprefix $(H)/diag/,diag.c memsnap.c sdktest.c) $(addprefix $(H)/front/,cmdchan.c) \
 	$(H)/media/movie_webm.c $(H)/cloud/cloudsync.c
 # The graphics layer without its Metal backend: the display and GPU driver glue takeovers (nn::vi, nv::), NVN's takeover and the replay core
 # (gfx/nvn/hle_nvn.c, core/), the pool write tracking, texture layouts and deswizzling, the format table and the trace. The backend: the null one

@@ -190,7 +190,6 @@ static void hap_init(void) {
 #endif
 }
 
-__attribute__((weak)) void dm_front_controller_key(void) {}
 static void publish(GCController *c, GCExtendedGamepad *g, int by_position) {
     uint64_t b = dm_gamepad_face_by(g.buttonA.pressed, g.buttonB.pressed, g.buttonX.pressed, g.buttonY.pressed, by_position);
     if (g.leftShoulder.pressed) b |= DM_BTN_L; if (g.rightShoulder.pressed) b |= DM_BTN_R;
@@ -199,10 +198,6 @@ static void publish(GCController *c, GCExtendedGamepad *g, int by_position) {
     if (g.buttonMenu.pressed) b |= DM_BTN_PLUS; if (g.buttonOptions.pressed) b |= DM_BTN_MINUS;
     if (g.dpad.left.pressed) b |= DM_BTN_LEFT; if (g.dpad.up.pressed) b |= DM_BTN_UP;
     if (g.dpad.right.pressed) b |= DM_BTN_RIGHT; if (g.dpad.down.pressed) b |= DM_BTN_DOWN;
-    { int i = slot_of((__bridge const void *)c, 0); uint64_t prev = i >= 0 ? g_s[i].b : 0;   // a new key, or a stick newly past half way (plan item 171)
-      int far = hypotf(g.leftThumbstick.xAxis.value, g.leftThumbstick.yAxis.value) > 0.5f || hypotf(g.rightThumbstick.xAxis.value, g.rightThumbstick.yAxis.value) > 0.5f;
-      int was = i >= 0 && (hypot(g_s[i].ax[0], g_s[i].ax[1]) > 0.5 * DM_STICK_MAX || hypot(g_s[i].ax[2], g_s[i].ax[3]) > 0.5 * DM_STICK_MAX);
-      if ((b & ~prev) || (far && !was)) dm_front_controller_key(); }
     put((__bridge const void *)c, b, axis(g.leftThumbstick.xAxis.value), axis(g.leftThumbstick.yAxis.value),
         axis(g.rightThumbstick.xAxis.value), axis(g.rightThumbstick.yAxis.value));
 }

@@ -1,8 +1,7 @@
-// iOS front end (implements front.h): the Metal view the game presents to, letterboxed to the game picture's aspect ratio; touches → dm_touch_set,
-// or on-screen controls for a game steered with a controller (game.json touch "pad", host/front/touchpad.c); game controllers; the software keyboard
+// iOS front end (implements front.h): the Metal view the game presents to, letterboxed to the game picture's aspect ratio; touches → dm_touch_set;
+// game controllers; the software keyboard
 // dialog; scene lifecycle, audio session and thermal logging. main.m builds the window and forwards the scene events to front_ios_focus_event.
 #import <UIKit/UIKit.h>
-#import <UIKit/UIGestureRecognizerSubclass.h>   // DmAnyTouch sets its own state
 #import <AVFoundation/AVFoundation.h>
 #import <GameController/GameController.h>
 #import <Metal/Metal.h>
@@ -17,7 +16,6 @@
 #include "game.h"
 #include "native_size.h"
 #include "hle.h"
-#include "touchpad.h"
 
 int mtl_fps_target(void);   // gfx/nvn/nvn_mtl.m: 60, or 30 in the power-saving mode
 static CAMetalLayer *g_layer;
@@ -171,168 +169,8 @@ static __weak DmMetalView *g_view;
 - (void)safeAreaInsetsDidChange { [super safeAreaInsetsDidChange]; [self setNeedsLayout]; }
 @end
 
-// ---------- On-screen controls (host/front/touchpad.c) ----------
-// Over the whole screen (the letterbox bars too), for a game with game.json touch "pad" (DM_TOUCH=pad / screen overrides it): the controls are laid
-// out inside the safe area, every finger goes to tp_touch, drawn from tp_draw after each touch. Off while a game controller with an extended
-// profile is connected (BotWRecomp's automatic mode): the view is hidden and touches reach the game view. The eye's choice is kept in the user
-// defaults (dm.touch_hidden). The camera finger's sensitivity and inversion come from the Settings page (dm.look_sensitivity, dm.look_invert_x /
-// _y; tp_look_tuning, plan item 109), applied at start unless DM_TOUCH_LOOK was set, and whenever they change.
-static float g_look_s = -1; static int g_look_x, g_look_y;   // the Settings values as last read
-static void pad_look_settings(void) {
-    NSUserDefaults *d = NSUserDefaults.standardUserDefaults;
-    float s = [d floatForKey:@"dm.look_sensitivity"]; int x = [d boolForKey:@"dm.look_invert_x"], y = [d boolForKey:@"dm.look_invert_y"];
-    if (s == g_look_s && x == g_look_x && y == g_look_y) return;   // another setting changed (the eye's, for one): DM_TOUCH_LOOK stays
-    int first = g_look_s < 0; g_look_s = s; g_look_x = x; g_look_y = y;
-    if (first && getenv("DM_TOUCH_LOOK")) return;
-    tp_look_tuning(s, x, y); float a; int ax, ay; tp_look_tuning_get(&a, &ax, &ay);
-    LOG("front: touch camera sensitivity %.2f×%s%s (Settings)", a, ax ? ", horizontal inverted" : "", ay ? ", vertical inverted" : "");
-}
-// The controls' layout and opacity (plan item 148): dm.touch_layout (tp_custom_get's spec, written by the layout editor) and dm.touch_opacity (0.15-1,
-// the panel or the Settings page), applied at start and whenever they change
-static NSString *g_layout_spec; static float g_pad_alpha = -1;
-static void pad_layout_settings(void) {
-    NSUserDefaults *d = NSUserDefaults.standardUserDefaults; NSString *spec = [d stringForKey:@"dm.touch_layout"] ?: @""; float a = [d floatForKey:@"dm.touch_opacity"];
-    if (![spec isEqualToString:g_layout_spec ?: @"-"]) { g_layout_spec = spec; if (!tp_custom_set(spec.UTF8String)) LOG("[red] front: dm.touch_layout does not parse: %s", spec.UTF8String); }
-    if (a != g_pad_alpha) { g_pad_alpha = a; tp_opacity(a > 0 ? a : 1); }
-}
 static void front_panel_open(void);
 static UIViewController *top_controller(void);
-@class DmPadView;
-@interface DmEditBar : UIView
-- (instancetype)initWithPad:(DmPadView *)pad;
-- (void)selectionChanged;
-@end
-@interface DmPadView : UIView
-- (void)startEdit;
-- (void)endEdit:(BOOL)save;
-- (void)refresh;   // everything drawn again (layout, settings, the editor, shown or hidden)
-@end
-// The view's redraws (plan item 315e; upstream d2r-mobile 7b62d9c, MIT, and S2Arm's one layer per control, Apache-2.0, written anew): drawRect drew
-// the whole window's controls on every touch, the stick and a camera finger moving with it. The stick's base and knob and the camera finger's ring
-// are now layers of their own, placed on each touch with no animation; the rest is drawn again only when what it shows changes (tp_visual_sig: a
-// button pressed or released, the layout, the opacity). On the iPhone Air, Tears of the Kingdom standing: the controls shown and idle cost as much
-// as none (GPU p50 24.7-25.5 against 24.8-25.3 ms), a whole-window redraw 15 times a second 25.3-26.4 ms
-static UIBezierPath *pad_circle(CGFloat r) { return [UIBezierPath bezierPathWithOvalInRect:CGRectMake(-r, -r, 2 * r, 2 * r)]; }
-@implementation DmPadView { int _hidden; NSTimer *_test; DmEditBar *_bar; CAShapeLayer *_base, *_knob, *_ring; CGFloat _sr, _lr; uint64_t _sig, _n_upd, _n_draw; int _sig_ok; double _t_log; }
-- (instancetype)initWithFrame:(CGRect)f {
-    if (!(self = [super initWithFrame:f])) return nil;
-    self.multipleTouchEnabled = YES; self.opaque = NO; self.backgroundColor = UIColor.clearColor; self.contentMode = UIViewContentModeRedraw;
-    _hidden = [NSUserDefaults.standardUserDefaults boolForKey:@"dm.touch_hidden"]; tp_set_hidden(_hidden);
-    pad_look_settings(); pad_layout_settings();
-    _base = [CAShapeLayer layer]; _knob = [CAShapeLayer layer]; _ring = [CAShapeLayer layer];
-    for (CAShapeLayer *l in @[_base, _knob, _ring]) { l.hidden = YES; [self.layer addSublayer:l]; }
-    _base.lineWidth = 1.5; _knob.lineWidth = 1; _ring.lineWidth = 1; _ring.fillColor = nil;
-    [NSNotificationCenter.defaultCenter addObserverForName:NSUserDefaultsDidChangeNotification object:nil queue:NSOperationQueue.mainQueue
-                                                usingBlock:^(NSNotification *n) { (void)n; pad_look_settings(); pad_layout_settings(); [self refresh]; }];
-    if (getenv("DM_TEST_TOUCHPAD")) _test = [NSTimer scheduledTimerWithTimeInterval:1 / 15.0 repeats:YES block:^(NSTimer *t) { (void)t; [self update]; }];   // the self-test's fingers
-    return self;
-}
-- (void)relayout {
-    UIEdgeInsets in = self.safeAreaInsets; CGSize b = self.bounds.size; float wt = 0;
-    if (@available(iOS 26.0, *)) {   // the iPadOS window controls in the top-left corner (plan item 171, as Touchable reads them): the left column goes below
-        UIViewLayoutRegion *rg = [UIViewLayoutRegion safeAreaLayoutRegionWithCornerAdaptation:UIViewLayoutRegionAdaptivityAxisVertical];
-        wt = (float)[self edgeInsetsForLayoutRegion:rg].top; }
-    tp_layout((float)b.width, (float)b.height, (float)in.left, (float)in.top, (float)in.right, (float)in.bottom, wt);
-    [self refresh];
-}
-- (void)place:(const tp_draw_state *)d {   // the stick and a camera finger's ring, where they are now
-    int show = d->visible && !d->collapsed; CGFloat A = d->opacity > 0 ? d->opacity : 1;
-    UIColor *line = [UIColor colorWithWhite:1 alpha:0.45 * A], *fill = [UIColor colorWithWhite:0 alpha:0.18 * A], *down = [UIColor colorWithWhite:1 alpha:0.35 * A];
-    [CATransaction begin]; [CATransaction setDisableActions:YES];
-    CGFloat sc = self.traitCollection.displayScale;   // layers added by hand draw at 1x unless told
-    if (sc > 0 && _base.contentsScale != sc) for (CAShapeLayer *l in @[_base, _knob, _ring]) l.contentsScale = sc;
-    _base.hidden = _knob.hidden = !show; _ring.hidden = !(show && d->look);
-    if (show) {   // the ring at home while idle, else the base where the thumb is and the knob under it
-        CGFloat bx = d->stick ? d->bx : d->home_x, by = d->stick ? d->by : d->home_y, kx = d->stick ? d->kx : bx, ky = d->stick ? d->ky : by, sr = d->stick_r;
-        if (sr != _sr) { _sr = sr; _base.path = pad_circle(sr).CGPath; _knob.path = pad_circle(sr * 0.42).CGPath; }
-        _base.position = CGPointMake(bx, by); _base.fillColor = fill.CGColor; _base.strokeColor = line.CGColor;
-        _knob.position = CGPointMake(kx, ky); _knob.fillColor = (d->stick ? down : fill).CGColor; _knob.strokeColor = line.CGColor;
-        if (d->look) { CGFloat lr = 22 * d->u; if (lr != _lr) { _lr = lr; _ring.path = pad_circle(lr).CGPath; } _ring.position = CGPointMake(d->look_x, d->look_y); _ring.strokeColor = line.CGColor; }
-    }
-    [CATransaction commit];
-}
-- (void)update {   // after a touch: the layers placed, the view drawn again only when what it shows changed
-    tp_draw_state d; tp_draw(&d); [self place:&d];
-    uint64_t s = tp_visual_sig(&d); _n_upd++;
-    if (!_sig_ok || s != _sig) { _sig = s; _sig_ok = 1; [self setNeedsDisplay]; }
-    double now = CACurrentMediaTime(); if (!_t_log) _t_log = now;
-    if (now - _t_log >= 30) { LOG("front: on-screen controls: %llu updates, %llu redraws in the last %.0f s", (unsigned long long)_n_upd, (unsigned long long)_n_draw, now - _t_log); _n_upd = _n_draw = 0; _t_log = now; }
-}
-- (void)refresh { _sig_ok = 0; [self update]; }
-- (void)layoutSubviews { [super layoutSubviews]; [self relayout]; }
-- (void)safeAreaInsetsDidChange { [super safeAreaInsetsDidChange]; [self relayout]; }
-- (void)send:(NSSet<UITouch *> *)ts phase:(int)ph {
-    for (UITouch *t in ts) { CGPoint p = [t locationInView:self]; tp_touch((long)(__bridge void *)t, ph, (float)p.x, (float)p.y); }
-    int h = tp_hidden();
-    if (h != _hidden) { _hidden = h; [NSUserDefaults.standardUserDefaults setBool:h forKey:@"dm.touch_hidden"]; }
-    if (tp_menu_take()) front_panel_open();
-    [_bar selectionChanged];
-    [self update];
-}
-- (void)touchesBegan:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e { (void)e; [self send:ts phase:TP_DOWN]; }
-- (void)touchesMoved:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e { (void)e; [self send:ts phase:TP_MOVE]; }
-- (void)touchesEnded:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e { (void)e; [self send:ts phase:TP_UP]; }
-- (void)touchesCancelled:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e { (void)e; [self send:ts phase:TP_UP]; }
-static void pad_label(const char *s, CGFloat x, CGFloat y, CGFloat size, CGFloat alpha) {
-    NSDictionary *a = @{NSFontAttributeName: [UIFont systemFontOfSize:size weight:UIFontWeightSemibold], NSForegroundColorAttributeName: [UIColor colorWithWhite:1 alpha:alpha]};
-    NSString *t = @(s); CGSize z = [t sizeWithAttributes:a];
-    [t drawAtPoint:CGPointMake(x - z.width / 2, y - z.height / 2) withAttributes:a];
-}
-- (void)drawRect:(CGRect)r {
-    (void)r; tp_draw_state d; tp_draw(&d); _n_draw++;
-    if (!d.visible) return;
-    CGFloat A = d.opacity > 0 ? d.opacity : 1;   // plan item 148: the controls' opacity
-    UIColor *line = [UIColor colorWithWhite:1 alpha:0.45 * A], *fill = [UIColor colorWithWhite:0 alpha:0.18 * A], *down = [UIColor colorWithWhite:1 alpha:0.35 * A];
-    for (int i = 0; i < d.n; i++) {
-        tp_item *it = &d.items[i]; UIBezierPath *p;
-        if (it->shape == TP_PILL) p = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(it->x - it->r, it->y - it->hh, 2 * it->r, 2 * it->hh) cornerRadius:it->hh];
-        else if (it->shape == TP_DPAD) {   // a cross of three-by-one arms; the held direction filled
-            CGFloat a = it->r / 3;
-            p = [UIBezierPath bezierPathWithRect:CGRectMake(it->x - a / 2 * 1.4, it->y - it->r, a * 1.4, 2 * it->r)];
-            [p appendPath:[UIBezierPath bezierPathWithRect:CGRectMake(it->x - it->r, it->y - a / 2 * 1.4, 2 * it->r, a * 1.4)]];
-        } else p = [UIBezierPath bezierPathWithOvalInRect:CGRectMake(it->x - it->r, it->y - it->r, 2 * it->r, 2 * it->r)];
-        [(it->pressed && it->shape != TP_DPAD ? down : fill) setFill]; [p fill]; [line setStroke]; p.lineWidth = 1.5; [p stroke];
-        if (it->shape == TP_DPAD) {
-            static const struct { uint32_t m; float dx, dy; } arm[] = {{DM_BTN_UP, 0, -1}, {DM_BTN_DOWN, 0, 1}, {DM_BTN_LEFT, -1, 0}, {DM_BTN_RIGHT, 1, 0}};
-            for (int k = 0; k < 4; k++) if (it->dir & arm[k].m) {
-                CGFloat a = it->r / 3 * 1.4;
-                [down setFill]; [[UIBezierPath bezierPathWithRect:CGRectMake(it->x + arm[k].dx * it->r * 0.65 - a / 2, it->y + arm[k].dy * it->r * 0.65 - a / 2, a, a)] fill];
-            }
-        } else if (it->shape == TP_EYE) {   // an eye; struck through while the controls are collapsed
-            UIBezierPath *e = [UIBezierPath bezierPathWithOvalInRect:CGRectMake(it->x - it->r * 0.6, it->y - it->r * 0.32, it->r * 1.2, it->r * 0.64)];
-            [line setStroke]; [e stroke]; [[UIBezierPath bezierPathWithOvalInRect:CGRectMake(it->x - it->r * 0.16, it->y - it->r * 0.16, it->r * 0.32, it->r * 0.32)] fill];
-            if (d.collapsed) { UIBezierPath *s = [UIBezierPath bezierPath]; [s moveToPoint:CGPointMake(it->x - it->r * 0.6, it->y + it->r * 0.6)]; [s addLineToPoint:CGPointMake(it->x + it->r * 0.6, it->y - it->r * 0.6)]; [s stroke]; }
-        } else if (it->shape == TP_MENU) {   // three bars: the settings panel
-            for (int k = -1; k <= 1; k++) { UIBezierPath *b = [UIBezierPath bezierPath]; [b moveToPoint:CGPointMake(it->x - it->r * 0.5, it->y + k * it->r * 0.32)];
-                [b addLineToPoint:CGPointMake(it->x + it->r * 0.5, it->y + k * it->r * 0.32)]; b.lineWidth = 1.5; [line setStroke]; [b stroke]; }
-        } else pad_label(it->label, it->x, it->y, it->shape == TP_PILL ? it->hh * 1.0 : it->r * 0.8, (it->pressed ? 1 : 0.8) * A);
-        if (d.editing) {   // the layout editor: every control outlined, the one held in yellow
-            CGFloat ex = it->r + 3, ey = (it->shape == TP_PILL ? it->hh : it->r) + 3;
-            UIBezierPath *o = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(it->x - ex, it->y - ey, 2 * ex, 2 * ey) cornerRadius:6];
-            CGFloat dash[2] = {4, 3}; [o setLineDash:dash count:2 phase:0]; o.lineWidth = i == d.sel ? 2.5 : 1;
-            [(i == d.sel ? UIColor.systemYellowColor : [UIColor colorWithWhite:1 alpha:0.8]) setStroke]; [o stroke];
-        }
-    }
-    if (d.collapsed) return;
-    // the stick and a camera finger's ring are layers (-place:); the layout editor's outline of the stick is drawn here
-    CGFloat bx = d.stick ? d.bx : d.home_x, by = d.stick ? d.by : d.home_y, sr = d.stick_r;
-    if (d.editing) { UIBezierPath *o = [UIBezierPath bezierPathWithOvalInRect:CGRectMake(bx - sr - 3, by - sr - 3, 2 * sr + 6, 2 * sr + 6)]; CGFloat dash[2] = {4, 3};
-        [o setLineDash:dash count:2 phase:0]; o.lineWidth = d.sel == TP_SEL_STICK ? 2.5 : 1; [(d.sel == TP_SEL_STICK ? UIColor.systemYellowColor : [UIColor colorWithWhite:1 alpha:0.8]) setStroke]; [o stroke]; }
-}
-- (void)startEdit {
-    if (_bar) return;
-    tp_edit(1); [self refresh];
-    _bar = [[DmEditBar alloc] initWithPad:self];
-    [self.superview addSubview:_bar];
-}
-- (void)endEdit:(BOOL)save {
-    tp_edit(0);
-    if (save) { char spec[1024]; tp_custom_get(spec, sizeof spec); g_layout_spec = @(spec); [NSUserDefaults.standardUserDefaults setObject:g_layout_spec forKey:@"dm.touch_layout"];
-        LOG("front: controls layout saved: %s", spec[0] ? spec : "(the default)"); }
-    [_bar removeFromSuperview]; _bar = nil; [self refresh];
-}
-@end
-static __weak DmPadView *g_pad;
 // A line over the game for 12 s when the signature expires within 48 hours (plan item 317b; main.m reads the date): the app does not open after it
 extern long long dm_prov_expiry_at;
 static void prov_banner(UIView *box) {
@@ -352,44 +190,9 @@ static void prov_banner(UIView *box) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 12 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         [UIView animateWithDuration:0.5 animations:^{ l.alpha = 0; } completion:^(BOOL f) { (void)f; [l removeFromSuperview]; }]; });
 }
-extern void (*dm_padshot_hook)(const char *path);   // host/front/cmdchan.c
-static void pad_shot(const char *path) {   // the command channel's padshot (plan items 315e, 317b): the views over the game (the controls and their layers, a line
-                                           // such as prov_banner's) as drawn now, over black (the game's own layer draws nothing here)
-    NSString *p = @(path);
-    dispatch_async(dispatch_get_main_queue(), ^{
-        DmPadView *v = g_pad; if (!v) { LOG("[red] [cmd] padshot %s: no on-screen controls", p.UTF8String); return; }
-        [v refresh]; [v.layer displayIfNeeded];   // the layers where the controls are now (a self-test moves them without touches), the view drawn
-        UIView *top = v.superview ?: v; CGRect b = top.bounds;
-        UIImage *img = [[[UIGraphicsImageRenderer alloc] initWithBounds:b] imageWithActions:^(UIGraphicsImageRendererContext *c) {
-            [UIColor.blackColor setFill]; UIRectFill(b); for (UIView *s in top.subviews) if (s != g_view) { CGContextSaveGState(c.CGContext); CGContextTranslateCTM(c.CGContext, s.frame.origin.x, s.frame.origin.y); [s.layer renderInContext:c.CGContext]; CGContextRestoreGState(c.CGContext); } }];
-        BOOL ok = [UIImagePNGRepresentation(img) writeToFile:p atomically:YES];
-        LOG("[cmd] padshot %s: %s (%.0fx%.0f pt%s)", p.UTF8String, ok ? "written" : "[red] not written", b.size.width, b.size.height, v.hidden ? ", the controls hidden" : "");
-    });
-}
-
-// The layout editor's bar (plan item 148), at the top of the screen while the editor is on: the size of the control touched last, Reset, Done
-@implementation DmEditBar { __weak DmPadView *_pad; UISlider *_size; UILabel *_hint; }
-- (instancetype)initWithPad:(DmPadView *)pad {
-    CGRect b = pad.bounds; UIEdgeInsets in = pad.safeAreaInsets;
-    if (!(self = [super initWithFrame:CGRectMake(b.size.width / 2 - 220, in.top + 8, 440, 44)])) return nil;
-    _pad = pad; self.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.85]; self.layer.cornerRadius = 10;
-    self.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
-    _hint = [[UILabel alloc] initWithFrame:CGRectMake(12, 0, 120, 44)]; _hint.textColor = UIColor.whiteColor; _hint.font = [UIFont systemFontOfSize:13]; _hint.text = @"Drag a control";
-    _size = [[UISlider alloc] initWithFrame:CGRectMake(132, 7, 150, 30)]; _size.minimumValue = 0.5; _size.maximumValue = 2; _size.enabled = NO;
-    [_size addTarget:self action:@selector(sized) forControlEvents:UIControlEventValueChanged];
-    UIButton *reset = [UIButton systemButtonWithPrimaryAction:[UIAction actionWithTitle:@"Reset" image:nil identifier:nil handler:^(UIAction *a) { (void)a; tp_custom_reset(); [self selectionChanged]; [pad refresh]; }]];
-    UIButton *done = [UIButton systemButtonWithPrimaryAction:[UIAction actionWithTitle:@"Done" image:nil identifier:nil handler:^(UIAction *a) { (void)a; [pad endEdit:YES]; }]];
-    reset.frame = CGRectMake(290, 7, 64, 30); done.frame = CGRectMake(362, 7, 64, 30);
-    for (UIView *v in @[_hint, _size, reset, done]) [self addSubview:v];
-    return self;
-}
-- (void)sized { tp_edit_scale(_size.value); [_pad refresh]; }
-- (void)selectionChanged { float s = tp_edit_scale_get(); _size.enabled = s > 0; if (s > 0) { _size.value = s; _hint.text = @"Size"; } }
-@end
-
 // The settings panel (plan item 148; BotWRecomp's in-game settings and lordran-native's floating menu, MIT, the ideas): the Settings page's choices
-// while the game runs, from the menu button between - and + or a three-finger tap (any game). It writes the same user defaults, so what applies
-// while the game runs (frame rate, MetalFX, the frame rate line, the camera, the controls' opacity) applies at once; the render resolution at the
+// while the game runs, from a three-finger tap. It writes the same user defaults, so what applies
+// while the game runs (frame rate, MetalFX, the frame rate line) applies at once; the render resolution at the
 // next launch. The game goes on behind it.
 @interface DmPanel : UIViewController
 @end
@@ -415,14 +218,6 @@ static UISegmentedControl *panel_choice(NSString *key, NSArray<NSString *> *titl
         forControlEvents:UIControlEventValueChanged];
     return c;
 }
-static UISlider *panel_slider(NSString *key, float lo, float hi, float def, NSArray<NSNumber *> *steps) {   // steps: the values the Settings page lists
-    UISlider *s = [UISlider new]; s.minimumValue = lo; s.maximumValue = hi; float v = [NSUserDefaults.standardUserDefaults floatForKey:key]; s.value = v > 0 ? v : def;
-    [s.widthAnchor constraintEqualToConstant:160].active = YES;
-    [s addAction:[UIAction actionWithHandler:^(UIAction *a) { UISlider *x = (UISlider *)a.sender; float best = x.value, bd = 1e9f;
-        for (NSNumber *n in steps) if (fabsf(n.floatValue - x.value) < bd) { bd = fabsf(n.floatValue - x.value); best = n.floatValue; }
-        [NSUserDefaults.standardUserDefaults setFloat:best forKey:key]; }] forControlEvents:UIControlEventValueChanged];
-    return s;
-}
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor colorWithWhite:0 alpha:0.45];
@@ -437,18 +232,6 @@ static UISlider *panel_slider(NSString *key, float lo, float hi, float def, NSAr
     [st addArrangedSubview:panel_row(@"MetalFX upscaling", panel_switch(@"dm.metalfx"))];
     [st addArrangedSubview:panel_row(@"Wide screen (next launch)", panel_switch(@"dm.widen"))];   // plan item 320g (main.m: DM_WIDEN at launch)
     [st addArrangedSubview:panel_row(@"Show frame rate", panel_switch(@"dm.perf_line"))];
-    if (g_pad) {
-        [st addArrangedSubview:panel_row(@"Camera sensitivity", panel_slider(@"dm.look_sensitivity", 0.25f, 3, 1, @[@0.25, @0.5, @0.75, @1, @1.25, @1.5, @2, @2.5, @3]))];
-        [st addArrangedSubview:panel_row(@"Invert horizontal", panel_switch(@"dm.look_invert_x"))];
-        [st addArrangedSubview:panel_row(@"Invert vertical", panel_switch(@"dm.look_invert_y"))];
-        [st addArrangedSubview:panel_row(@"Controls opacity", panel_slider(@"dm.touch_opacity", 0.15f, 1, 1, @[@0.3, @0.5, @0.75, @1]))];
-        __weak DmPanel *ws = self;
-        UIButton *edit = [UIButton systemButtonWithPrimaryAction:[UIAction actionWithTitle:@"Edit controls layout" image:nil identifier:nil handler:^(UIAction *a) { (void)a;
-            [ws dismissViewControllerAnimated:YES completion:^{ [g_pad startEdit]; }]; }]];
-        UIButton *reset = [UIButton systemButtonWithPrimaryAction:[UIAction actionWithTitle:@"Reset controls layout" image:nil identifier:nil handler:^(UIAction *a) { (void)a;
-            tp_custom_reset(); g_layout_spec = @""; [NSUserDefaults.standardUserDefaults setObject:@"" forKey:@"dm.touch_layout"]; [g_pad refresh]; }]];
-        [st addArrangedSubview:edit]; [st addArrangedSubview:reset];
-    }
     __weak DmPanel *ws = self;
     UIButton *done = [UIButton systemButtonWithPrimaryAction:[UIAction actionWithTitle:@"Done" image:nil identifier:nil handler:^(UIAction *a) { (void)a; [ws dismissViewControllerAnimated:YES completion:nil]; }]];
     [st addArrangedSubview:done];
@@ -478,30 +261,6 @@ static void front_panel_open(void) {   // main thread
 - (void)tap:(UITapGestureRecognizer *)r { if (r.state == UIGestureRecognizerStateEnded) front_panel_open(); }
 @end
 static DmPanelTap *g_panel_tap;
-static int pad_wanted(void) {
-    const char *e = getenv("DM_TOUCH");
-    if (e && !strcmp(e, "pad")) return 1;
-    if (e && !strcmp(e, "screen")) return 0;
-    return dm_game.touch_pad;
-}
-// A game controller (plan item 171, after Touchable): connecting one leaves the controls; a key on it hides them (dm_front_controller_key, host/
-// gamepad.m); a touch anywhere (DmAnyTouch on the screen's view) or the last controller gone shows them again (tp_controller)
-static void pad_ctl_apply(int hidden) { if (!g_pad) return; g_pad.hidden = hidden; [g_pad refresh]; }
-static void pad_follow_controllers(void) {   // main thread
-    int ctl = 0; for (GCController *c in GCController.controllers) ctl |= c.extendedGamepad != nil;
-    pad_ctl_apply(tp_controller(ctl ? TP_CTL_CONNECT : TP_CTL_GONE));
-}
-void dm_front_controller_key(void) { dispatch_async(dispatch_get_main_queue(), ^{ if (g_pad && !g_pad.hidden) pad_ctl_apply(tp_controller(TP_CTL_KEY)); }); }
-@interface DmAnyTouch : UIGestureRecognizer
-@end
-@implementation DmAnyTouch
-- (void)touchesBegan:(NSSet<UITouch *> *)t withEvent:(UIEvent *)e {
-    (void)t; (void)e;
-    if (g_pad && g_pad.hidden) pad_ctl_apply(tp_controller(TP_CTL_TOUCH));
-    self.state = UIGestureRecognizerStateFailed;   // only watches: the touch goes on to the views
-}
-@end
-
 // Frame rate hint for ProMotion screens: 60 Hz, or 30 Hz while the graphics layer is in its power-saving mode
 // System volume changes are logged with the time since the display link's last callback: after a volume button press the display link was seen to
 // stop while active (nvn_mtl.m rescue), and the log otherwise does not show when the button was pressed
@@ -539,18 +298,6 @@ UIView *front_ios_view(CGRect frame, UIScreen *screen) {
             if (h) LOG("front: hinge %s, %.0f degrees", name[st], h.angle * 180 / M_PI); else LOG("front: no hinge updates (the view left a hierarchy that has them)"); }]];
     DmMetalView *v = [[DmMetalView alloc] initWithFrame:letterbox_rect(frame)];
     box.game = v; [box addSubview:v]; g_view = v;
-    if (pad_wanted()) {
-        DmPadView *pad = [[DmPadView alloc] initWithFrame:box.bounds];
-        pad.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [box addSubview:pad]; g_pad = pad; dm_padshot_hook = pad_shot;
-        NSNotificationCenter *nc = NSNotificationCenter.defaultCenter; NSOperationQueue *mq = NSOperationQueue.mainQueue;
-        for (NSNotificationName n in @[GCControllerDidConnectNotification, GCControllerDidDisconnectNotification])
-            [nc addObserverForName:n object:nil queue:mq usingBlock:^(NSNotification *x) { (void)x; pad_follow_controllers(); }];
-        pad_follow_controllers();
-        DmAnyTouch *any = [[DmAnyTouch alloc] initWithTarget:nil action:nil]; any.cancelsTouchesInView = NO; any.delaysTouchesBegan = NO; any.delaysTouchesEnded = NO;
-        [box addGestureRecognizer:any];
-        LOG("front: on-screen controls (touch \"pad\"%s)", getenv("DM_TOUCH") ? ", from DM_TOUCH" : "");
-    }
     prov_banner(box);
     g_panel_tap = [DmPanelTap new];   // a three-finger tap opens the settings panel in any game (plan item 148); the touches still reach the game
     UITapGestureRecognizer *tap3 = [[UITapGestureRecognizer alloc] initWithTarget:g_panel_tap action:@selector(tap:)]; tap3.numberOfTouchesRequired = 3; tap3.cancelsTouchesInView = NO;
@@ -663,7 +410,7 @@ void front_ios_focus_event(int ev) {
     static const char *k[] = {"sceneWillResignActive", "sceneDidEnterBackground", "sceneWillEnterForeground", "sceneDidBecomeActive"};
     LOG("front: %s (guest clock %.3f s, audio callbacks %llu)", k[ev], guest_ns() / 1e9, (unsigned long long)dm_audio_render_calls());
     switch (ev) {
-    case 0: [g_view liftAll]; if (g_pad) pad_follow_controllers(); dm_gamepad_reset(); dm_focus_set(2); break;   // held buttons / touches released in the background never report it
+    case 0: [g_view liftAll]; dm_gamepad_reset(); dm_focus_set(2); break;   // held buttons / touches released in the background never report it
     case 1: dm_focus_set(3); g_audio_bg = 1; audio_apply(); dm_cloud_flush(1); guest_clock_freeze_for(1, 1); dm_gfx_suspend(1); break;
     // Back in the foreground any interruption counts as over: the system interrupts the session when the app goes to the background but does not
     // promise an "ended" on return; if the session is really still taken, starting the audio unit fails harmlessly and is retried on activation

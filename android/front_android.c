@@ -66,7 +66,6 @@ void front_save_failed(int err) {
     LOG("[red] front: a save transaction failed (errno %d); the committed save is unchanged", err);
     dm_dialog("Not enough storage", "The game could not save its progress.");
 }
-void dm_front_controller_key(void) {}
 
 // ---------- window ----------
 static pthread_mutex_t g_win_mu = PTHREAD_MUTEX_INITIALIZER;

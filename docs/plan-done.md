@@ -98,7 +98,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 51 · b13 · lifecycle and swipe-away tests (upstream `ios/tools/lifecycle.sh`, `logred.sh`). The home button and the app
   switcher were for the phone (70).
 - 52 · b14 · scene render size on 1.4.3, `DM_RENDER_RES=<w>x<h>` (after MacNativeGames PR #19, MIT).
-- 54 · b16 · user mod folders, `DM_MODS=<dir>` (after SkyRecomp's `runtime/mods.c`, MIT); on iOS `Documents/mods`.
 - 55 · not taken (b17) · moving the AudioUnit open (tomodachi-native d7f52e1 moved it after a 40 s stall): 22-26 ms in the games here.
 - 56 · not taken (b18) · cold uploaded textures (justr4mzi's mush8 fork aafef22, ideas only): about 3 % of Tears of the Kingdom's Metal memory.
 - 57 · b19 · code patches chosen at launch (`DM_OPTIONS`), one product for 30 and 60 fps (after tomodachi-native 0428c80, MIT). iOS (the
@@ -166,7 +165,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   layouts (our shaders come from the NVN calls).
 - 64l · b54 · the control section length by GPU code version (0x838-0x880, at +0x20; bayonetta3-mobile's nvn_control.h as data).
 - 64m · b54 · guards against Metal aborts (super-mario-odyssey-ios 693bc6b / 356ab26, MIT, written anew).
-- 64n · b54 · provisional profiles from the game files: `tools/new_game.py --check` (nxnative's profile_guess.py marker list, MIT, as data).
 - 65 · b63 · a personal team signs the increased memory limit (BotWRecomp `PORTING.md` and mush8 `make-ios.sh` say a free account can;
   MacNativeGames played 1.4.3 with it on a personal team; decided on 2026-10-21), so `ios/tools/project_free.py` keeps it (manosaba,
   iPhone 17 Pro: about 3.4 → 6.1 GB); extended virtual addressing is refused to personal teams.
@@ -298,11 +296,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   control editor, MIT, the ideas).
 - 149 · b60 · face buttons by position for PlayStation and Xbox controllers (MacNativeGames 31052d6, MIT, written anew):
   `DM_FACE_BUTTONS=position`; unset as before (the user plays with an Xbox controller by its letters).
-- 150 · b60 · pchtxt patches at load and a cheat VM, refusing rewritten sites (MacNativeGames 1b33531, PR #22).
-- 150a · b60 · pchtxt at load (MacNativeGames 1b33531's TOTK_PCHTXT, MIT, written anew): `DM_PCHTXT=<file>[:<file>...]`
-  (`host/game/pchtxt.c`); a patch touching a word the rewriter changed refuses the whole file in red.
-- 150b · b60 · a cheat VM (Atmosphère's cheat file format; MacNativeGames PR #22's split, MIT, open, written anew): `host/game/cheat_vm.c`
-  runs Atmosphère's documented encodings (docs/features/cheats.md; facts only, its code is GPL); `DM_CHEATS=<file>`.
 - 151 · b79 · the save-loading crash at 1.4.3 main+0x1bd01c4 (MacNativeGames dd0e893, MIT; written anew): `games/totk/optref.c` takes
   a value above the 39-bit address space there as absent, clears the field and runs the load again.
 - 152 · not taken (b61) · frame interpolation by replaying the frame (LASRecomp `frame-interp-rt`; peiikai/LASRecomp
@@ -325,8 +318,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   of ours in MacNativeGames' shared list (MIT, keys as data).
 - 163 · b52 · hair and cloth at 60 / 120 fps (MacNativeGames PR #79, merged, MIT; its sites, routine words and Unicorn table as data, the code
   ours): CAVES behind option realtime. Left (the user): wind at 60 and 120 fps.
-- 164 · b52 · a mod that carries one of our RomFS overlay files (MacNativeGames #73, open): the SHA-256 of its copy decides between the
-  overlay's file, a merge in `<mods>/-merged/<that SHA-256>/<path>` and the mod's copy (red line).
 - 165 · b53 · decals that read their own G-buffer pass (`DM_NVN_FBX=split`; MacNativeGames PR #67, open, MIT, written anew in `fbx_prepare`),
   default off. Left (the user): a turning camera over paved ground or decals.
 - 166 · b54 · a three-hour soak of the 60 fps product (MacNativeGames #57, #72, #74; upstream #90): the cliff save stopped after 47 min above
