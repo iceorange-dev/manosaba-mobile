@@ -127,7 +127,7 @@ What was ported from each project, by hand and credited where it lives in the co
   controller words, the real-time frame step, its uncapped pacing and the scene render size, uniform snapshots, and from its graphics layer the pending-write table, keep-alive, chunked
   commits, render-state filter, upload staging pool, storage-followed and storage-shared textures, GPU write-back, uniform renaming,
   small-texture hashing and once-per-submission checks, layered passes, the encode stage, driver segment fills, block height and D16 clear fixes,
-  the GPU memory budget and pool range checks, and the RomFS overlay findings for 60 fps; then the fault guard around snapshot copies, read-only
+  and the GPU memory budget and pool range checks; then the fault guard around snapshot copies, read-only
   rodata, waiting for a save at quit and one game at a time on the Mac, host calls on a per-thread host stack with the frame record back to
   the guest, the live command channel, the sead heap walk and list watch and the soak measurement; then no blending on integer colour outputs,
   empty memory pools and fewer pipeline guesses, ported by hand and credited in the code; the
@@ -180,7 +180,7 @@ What was ported from each project, by hand and credited where it lives in the co
   fixes, vertex outputs from (0,0,0,1), `-fpreserve-invariance`, `-fmetal-math-mode=safe`, `gfx/tools/dmsh_mtlcache.py`); correctness 06c80bd
   (autorelease pool, c0 fills, block height, D16 clears, packaged texture data, primitive restart, 8-bit index widening, storage follow, textures
   sharing a storage, write-back on invalidate, QueueFinish, the GPU memory budget and pool checks); WaitSynchronization order 4dd984d;
-  MixWithOthers 46b63f4; the RomFS overlay 601258f; pending writes across submissions, acquire sync, keep-alive, chunked commits, uniform
+  MixWithOthers 46b63f4; pending writes across submissions, acquire sync, keep-alive, chunked commits, uniform
   snapshot and rename, the render-state filter, one compute encoder, upload staging, identical registrations, the dirty-tracking cost, layered
   passes. The encode stage was implemented and left off that day (on by default on iOS since batch 82).
 - From the early plan list: the AudioRenderer and deferred texture binds (a267ec1), small guest

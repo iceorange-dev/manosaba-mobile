@@ -6,7 +6,7 @@
 //   (4) DM_TEST_FS_FAIL=write:N:errno makes only the Nth save write fail, with writes before and after proceeding normally; that transaction's Commit is rejected, the committed version is unchanged, and the front end receives one notification;
 //      the next transaction commits normally, and the final save = the content of the next transaction;
 //   (5) remounting discards uncommitted content.
-// Also the RomFS overlay layers, and a pinned file (dm_rom_pin, plan item 164) winning over them; the pins ignored (-DDM_TEST_ROM_NO_PIN=1) fails 1.
+// Also the RomFS mount: its files read, writes refused, a directory of 3000 names counted and listed.
 // ReadFile into pages protected again after the prepare (plan item 196): prepared again; one prepare (-DDM_TEST_FS_NO_REPREP=1) fails 1.
 // IsSaveDataExisting from the save directory (plan item 64k): no until EnsureSaveData makes it; always yes (-DDM_TEST_SAVE_ALWAYS=1) fails 1.
 // "/rom:/…" and '\\' as a separator (plan item 64k); both refused (-DDM_TEST_PATH_STRICT=1) fails 2.
@@ -58,23 +58,18 @@ int main(void) {
     char root[1024], save[1100], work[1200], p[1200];
     const char *sp = getenv("TMPDIR"); snprintf(root, sizeof root, "%s/t_fs.XXXXXX", sp ? sp : "/private/tmp");
     if (!mkdtemp(root)) { perror("mkdtemp"); return 1; }
-    char rom[1100], overlay[1100], rdata[1200], odata[1200], fn[1300], got[64];
-    snprintf(rom, sizeof rom, "%s/rom", root); snprintf(overlay, sizeof overlay, "%s/overlay", root); snprintf(rdata, sizeof rdata, "%s/data", rom); snprintf(odata, sizeof odata, "%s/data", overlay);
-    mkdir(rom, 0755); mkdir(overlay, 0755); mkdir(rdata, 0755); mkdir(odata, 0755);
-    snprintf(fn, sizeof fn, "%s/same", rdata); put(fn, "base"); snprintf(fn, sizeof fn, "%s/same", odata); put(fn, "overlay"); snprintf(fn, sizeof fn, "%s/base", rdata); put(fn, "only-base"); snprintf(fn, sizeof fn, "%s/over", odata); put(fn, "only-overlay");
+    char rom[1100], rdata[1200], fn[1300], got[64];
+    snprintf(rom, sizeof rom, "%s/rom", root); snprintf(rdata, sizeof rdata, "%s/data", rom);
+    mkdir(rom, 0755); mkdir(rdata, 0755);
+    snprintf(fn, sizeof fn, "%s/same", rdata); put(fn, "base"); snprintf(fn, sizeof fn, "%s/base", rdata); put(fn, "only-base");
     { FILE *f; snprintf(fn, sizeof fn, "%s/pages", rdata); f = fopen(fn, "w"); for (int i = 0; i < 3 * 16384; i++) fputc('a' + i % 26, f); fclose(f); }   // read by plan item 196's check
-    {   // a directory with more names than the old listing cap (2048), made before the mount builds the RomFS name index (used below)
-        char big[1300], obig[1300]; snprintf(big, sizeof big, "%s/big", rom); snprintf(obig, sizeof obig, "%s/big", overlay); mkdir(big, 0755); mkdir(obig, 0755);
-        for (int i = 0; i < 3000; i++) { snprintf(fn, sizeof fn, "%s/f%04d", big, i); put(fn, "b"); }
-        for (int i = 2995; i < 3005; i++) { snprintf(fn, sizeof fn, "%s/f%04d", obig, i); put(fn, "ov"); } }
-    setenv("DM_ROMFS", rom, 1); setenv("DM_ROMFS_OVERLAY", overlay, 1); CHECK(h_fs_MountRom("rom", NULL, 0) == RES_OK, "mount the RomFS with an overlay");
-    CHECK(read_fs("rom:/data/same", got, sizeof got) && !strcmp(got, "overlay"), "the overlay file wins"); CHECK(read_fs("rom:/data/base", got, sizeof got) && !strcmp(got, "only-base"), "falls back to the base without an overlay file");
+    {   // a directory of 3000 names, made before the mount builds the RomFS name index (used below)
+        char big[1300]; snprintf(big, sizeof big, "%s/big", rom); mkdir(big, 0755);
+        for (int i = 0; i < 3000; i++) { snprintf(fn, sizeof fn, "%s/f%04d", big, i); put(fn, "b"); } }
+    setenv("DM_ROMFS", rom, 1); CHECK(h_fs_MountRom("rom", NULL, 0) == RES_OK, "mount the RomFS");
+    CHECK(read_fs("rom:/data/same", got, sizeof got) && !strcmp(got, "base") && read_fs("rom:/data/base", got, sizeof got) && !strcmp(got, "only-base"), "its files read");
     CHECK(read_fs("/rom:/data/base", got, sizeof got) && !strcmp(got, "only-base") && h_fs_IsPathMounted("/rom:/data"), "a separator before the mount name (Unity's \"/rom:/\", plan item 64k)");
-    CHECK(read_fs("rom:\\data\\base", got, sizeof got) && !strcmp(got, "only-base") && read_fs("rom:/data\\same", got, sizeof got) && !strcmp(got, "overlay"), "'\\' between components, the overlay too");
-    {   // A pinned file (dm_rom_pin, mods.c, plan item 164) wins over every layer; the others as before
-        char pin[1300]; snprintf(pin, sizeof pin, "%s/pinned", root); put(pin, "pinned"); dm_rom_pin("/data/same", pin);
-        CHECK(read_fs("rom:/data/same", got, sizeof got) && !strcmp(got, "pinned"), "a pinned file wins over the overlay and the base");
-        CHECK(read_fs("rom:/data/base", got, sizeof got) && !strcmp(got, "only-base"), "... the files not pinned as before"); g_npin = 0; }
+    CHECK(read_fs("rom:\\data\\base", got, sizeof got) && !strcmp(got, "only-base") && read_fs("rom:/data\\same", got, sizeof got) && !strcmp(got, "base"), "'\\' between components");
     // Plan item 196: ReadFile into pages protected again after the prepare (the graphics layer's tracker after an upload): pread gets EFAULT, the
     // rest is prepared again and read; -DDM_TEST_FS_NO_REPREP (one prepare, as before) fails it
     { enum { N = 3 * 16384 };   // (the file is made before the mount, with the others)
@@ -84,27 +79,16 @@ int main(void) {
       int ok = r == RES_OK && n2 == N; for (int i = 0; ok && i < N; i++) ok = m[i] == 'a' + i % 26;
       CHECK(ok && g_prep_calls >= 2, "ReadFile into pages protected again after the prepare: prepared again, all %d bytes read (%d prepares)", N, g_prep_calls);
       if (fh) h_fs_CloseFile(fh); g_prep_mode = 0; munmap(m, N); }
-    uint64_t rh; CHECK(h_fs_OpenFile(&rh, "rom:/data/same", MODE_WRITE) == RES_FAIL, "both layers refuse writes");
-    {   // A file in the overlay (dm_overlay_file): layers joined by colons, searched in order, earlier ones win
-        char l2[1100], two[2300], want[1300]; snprintf(l2, sizeof l2, "%s/pack", root); mkdir(l2, 0755); snprintf(two, sizeof two, "%s:%s", overlay, l2); setenv("DM_ROMFS_OVERLAY", two, 1);
-        snprintf(fn, sizeof fn, "%s/mark", overlay); put(fn, "1"); snprintf(fn, sizeof fn, "%s/only2", l2); put(fn, "2"); snprintf(fn, sizeof fn, "%s/mark", l2); put(fn, "2");
-        snprintf(want, sizeof want, "%s/mark", overlay); CHECK(dm_overlay_file("mark", p, sizeof p) == 1 && !strcmp(p, want), "in both layers: the first");
-        snprintf(want, sizeof want, "%s/only2", l2); CHECK(dm_overlay_file("only2", p, sizeof p) == 1 && !strcmp(p, want), "only in the second layer: the second");
-        snprintf(want, sizeof want, "%s/data/over", overlay); CHECK(dm_overlay_file("data/over", p, sizeof p) == 1 && !strcmp(p, want), "relative path with a subdirectory");
-        CHECK(dm_overlay_file("none", p, sizeof p) == 0 && !p[0], "in no layer: 0, output cleared");
-        setenv("DM_ROMFS_OVERLAY", overlay, 1); snprintf(want, sizeof want, "%s/mark", overlay); CHECK(dm_overlay_file("mark", p, sizeof p) == 1 && !strcmp(p, want), "a single layer works the same");
-        unsetenv("DM_ROMFS_OVERLAY"); CHECK(dm_overlay_file("mark", p, sizeof p) == 0, "no overlay set: 0"); setenv("DM_ROMFS_OVERLAY", overlay, 1); }
-    {   // An overlaid directory with more names than the old cap of 2048: 3000 in the base, 10 in the overlay of which 5 are also in the base: 3005,
-        // each once, the overlay's 10 with the overlay's size (2 bytes against the base's 1)
-        uint64_t dh; int64_t cnt = -1, total = 0, n = 0; static DirectoryEntry de[512]; static unsigned char seen[3005]; int dups = 0, bad = 0, ovsize = 0;
-        Result ro = h_fs_OpenDirectory(&dh, "rom:/big", DIRMODE_FILE); CHECK(ro == RES_OK, "open an overlaid directory of 3005 names");
+    uint64_t rh; CHECK(h_fs_OpenFile(&rh, "rom:/data/same", MODE_WRITE) == RES_FAIL, "the RomFS refuses writes");
+    {   // A directory of 3000 names: counted, and handed out each once
+        uint64_t dh; int64_t cnt = -1, total = 0, n = 0; static DirectoryEntry de[512]; static unsigned char seen[3000]; int dups = 0, bad = 0;
+        Result ro = h_fs_OpenDirectory(&dh, "rom:/big", DIRMODE_FILE); CHECK(ro == RES_OK, "open a directory of 3000 names");
         if (ro == RES_OK) {
-        CHECK(h_fs_DirCount(&cnt, dh) == RES_OK && cnt == 3005, "entry count 3005 (got %lld)", (long long)cnt);
+        CHECK(h_fs_DirCount(&cnt, dh) == RES_OK && cnt == 3000, "entry count 3000 (got %lld)", (long long)cnt);
         do { n = 0; if (h_fs_ReadDirectory(&n, de, dh, 512)) break;
-             for (int64_t i = 0; i < n; i++) { int k = atoi(de[i].name + 1); if (de[i].name[0] != 'f' || k < 0 || k >= 3005) { bad++; continue; } dups += seen[k]++ > 0; if (k >= 2995 && de[i].size == 2) ovsize++; }
+             for (int64_t i = 0; i < n; i++) { int k = atoi(de[i].name + 1); if (de[i].name[0] != 'f' || k < 0 || k >= 3000) { bad++; continue; } dups += seen[k]++ > 0; }
              total += n; } while (n);
-        CHECK(total == 3005 && !dups && !bad, "ReadDirectory hands out all 3005, each once (got %lld, %d twice, %d unknown)", (long long)total, dups, bad);
-        CHECK(ovsize == 10, "the overlay's 10 carry the overlay's size (got %d)", ovsize);
+        CHECK(total == 3000 && !dups && !bad, "ReadDirectory hands out all 3000, each once (got %lld, %d twice, %d unknown)", (long long)total, dups, bad);
         h_fs_CloseDirectory(dh); }
     }
     g_nmnt = 0;

@@ -11,9 +11,8 @@ part below goes with its tests, its switches' rows and its records, after a mano
 has run on a phone yet: an iPhone and an Android run are owed, and come before the parts that change what the phones run (the code
 options' new product, the wide picture). The parts that went first were off for manosaba on every platform, by its profile or a switch.
 
-- 328 · shared code only that game reached, by its gate, in this order: the RomFS overlay and RomFS parts; the code options (a new rewriter
-  stamp: the product rebuilt, and the stale comment of `games/manosaba/rules.py` with it); the wide picture and the widening (the settings'
-  "Wide screen" switch goes with them).
+- 328 · shared code only that game reached, by its gate, in this order: the code options (a new rewriter stamp: the product rebuilt, and the
+  stale comment of `games/manosaba/rules.py` with it); the wide picture and the widening (the settings' "Wide screen" switch goes with them).
 - 329 · takeovers the game's modules bind but no run has used (audren, 4 of its 12 names; motion, friends, net, swkbd) and the lists it has
   none of (`fout.tsv`, `border_msl.txt`, `lodbias_msl.txt`): kept until a longer run and a phone show them unused.
 - 330 · the documents: DEVELOPMENT.md and the READMEs' tables after 328; the open items below that came from the other game's work (271,

@@ -65,7 +65,6 @@ run: \
 	$(B)/t_freeze \
 	$(B)/t_freeze_none \
 	$(B)/t_fs \
-	$(B)/t_fs_nopin \
 	$(B)/t_fs_noreprep \
 	$(B)/t_fs_saveyes \
 	$(B)/t_fs_strict \
@@ -131,7 +130,6 @@ run: \
 	$(B)/t_lang_region \
 	$(B)/t_lang_regfirst \
 	$(B)/t_guest_as \
-	$(B)/t_romfs_parts \
 	$(B)/t_coolstart \
 	$(B)/t_pwrspec \
 	$(B)/t_pwrspec_noduty \
@@ -150,8 +148,6 @@ run: \
 	$(B)/t_rtld_order \
 	$(B)/t_rtld_ours \
 	$(B)/t_coolstart_onelook \
-	$(B)/t_romfs_parts_nosha \
-	$(B)/t_romfs_parts_anypath \
 	$(B)/t_guest_as_nolimit \
 	$(B)/t_options \
 	$(B)/t_options_nocheck \
@@ -165,7 +161,6 @@ run: \
 	$(B)/t_relr_unchecked \
 	$(B)/t_romfs_validate \
 	$(B)/t_romfs_validate_nokeys \
-	$(B)/t_romfs_validate_anyorig \
 	$(B)/t_rundiag \
 	$(B)/t_rundiag_nokeep \
 	$(B)/t_rundiag_head \
@@ -317,10 +312,6 @@ run: \
 	   cat $(B)/t_freeze_none.log; echo "t_freeze_none: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_freeze_none: without a test watchdog no freeze is dumped, as expected"
 	$(B)/t_fs 2>/dev/null
-	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_fs_nopin > $(B)/t_fs_nopin.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '  FAIL ' $(B)/t_fs_nopin.log)" -ne 1 ] || ! grep -q "FAIL a pinned file wins" $(B)/t_fs_nopin.log; then \
-	   cat $(B)/t_fs_nopin.log; echo "t_fs_nopin: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_fs_nopin: with the pins ignored the overlay's file is served, as expected"
 	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_fs_noreprep > $(B)/t_fs_noreprep.log 2>/dev/null || status=$$?; \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '  FAIL ' $(B)/t_fs_noreprep.log)" -ne 1 ] || ! grep -q "FAIL ReadFile into pages protected again" $(B)/t_fs_noreprep.log; then \
 	   cat $(B)/t_fs_noreprep.log; echo "t_fs_noreprep: unexpected negative-control result ($$status)"; exit 1; \
@@ -483,15 +474,6 @@ run: \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_guest_as_nolimit.log)" -ne 2 ]; then \
 	   cat $(B)/t_guest_as_nolimit.log; echo "t_guest_as_nolimit: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_guest_as_nolimit: without the 2^39 bound the gaps past it are taken, as expected"
-	TMPDIR="$(abspath $(B))" $(B)/t_romfs_parts
-	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_romfs_parts_nosha > $(B)/t_romfs_parts_nosha.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_romfs_parts_nosha.log)" -ne 2 ] || ! grep -q "one byte changed.*✗" $(B)/t_romfs_parts_nosha.log; then \
-	   cat $(B)/t_romfs_parts_nosha.log; echo "t_romfs_parts_nosha: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_romfs_parts_nosha: without the digest a damaged part is unpacked, as expected"
-	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_romfs_parts_anypath > $(B)/t_romfs_parts_anypath.log 2>/dev/null || status=$$?; \
-	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_romfs_parts_anypath.log)" -ne 1 ] || ! grep -q "evil.*✗" $(B)/t_romfs_parts_anypath.log; then \
-	   cat $(B)/t_romfs_parts_anypath.log; echo "t_romfs_parts_anypath: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_romfs_parts_anypath: paths taken as they are write outside the tree, as expected"
 	$(B)/t_pwrspec
 	@status=0; $(B)/t_pwrspec_noduty > $(B)/t_pwrspec_noduty.log 2>/dev/null || status=$$?; \
 	 if [ "$$status" -ne 1 ] || [ "$$(grep -c '✗' $(B)/t_pwrspec_noduty.log)" -ne 1 ]; then \
@@ -570,10 +552,6 @@ run: \
 	 if [ "$$status" -ne 1 ] || ! grep -q "FAIL marker: a key file cut short" $(B)/t_romfs_validate_nokeys.log; then \
 	   cat $(B)/t_romfs_validate_nokeys.log; echo "t_romfs_validate_nokeys: unexpected negative-control result ($$status)"; exit 1; \
 	 fi; echo "t_romfs_validate_nokeys: a marker trusted for the key files too lets a cut-short key file through, as expected"
-	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_romfs_validate_anyorig > $(B)/t_romfs_validate_anyorig.log 2>&1 || status=$$?; \
-	 if [ "$$status" -ne 1 ] || ! grep -q "FAIL overlay: another version's original refused" $(B)/t_romfs_validate_anyorig.log; then \
-	   cat $(B)/t_romfs_validate_anyorig.log; echo "t_romfs_validate_anyorig: unexpected negative-control result ($$status)"; exit 1; \
-	 fi; echo "t_romfs_validate_anyorig: an overlay served without comparing the RomFS's original takes another version's, as expected"
 	TMPDIR="$(abspath $(B))" $(B)/t_rundiag
 	@status=0; TMPDIR="$(abspath $(B))" $(B)/t_rundiag_nokeep > $(B)/t_rundiag_nokeep.log 2>/dev/null || status=$$?; \
 	 if [ "$$status" -ne 1 ] || ! grep -q "✗ its log kept as boot.interrupted.txt" $(B)/t_rundiag_nokeep.log; then \
@@ -905,8 +883,6 @@ $(B)/t_fs_strict: t_fs.c t_fs_stub.c ../hle/hle_fs.c ../hle.h ../dm.h ../game/ga
 	clang -O1 -Wno-unused-function -DDM_TEST_PATH_STRICT=1 -I.. -o $@ t_fs.c t_fs_stub.c ../game/game.c $(GEN) ../runtime/plat_apple.c
 $(B)/t_fs_saveyes: t_fs.c t_fs_stub.c ../hle/hle_fs.c ../hle.h ../dm.h ../game/game.c $(GEN) ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wno-unused-function -DDM_TEST_SAVE_ALWAYS=1 -I.. -o $@ t_fs.c t_fs_stub.c ../game/game.c $(GEN) ../runtime/plat_apple.c
-$(B)/t_fs_nopin: t_fs.c t_fs_stub.c ../hle/hle_fs.c ../hle.h ../dm.h ../game/game.c $(GEN) ../runtime/plat_apple.c | $(B)
-	clang -O1 -Wno-unused-function -DDM_TEST_ROM_NO_PIN=1 -I.. -o $@ t_fs.c t_fs_stub.c ../game/game.c $(GEN) ../runtime/plat_apple.c
 $(B)/t_fs_noreprep: t_fs.c t_fs_stub.c ../hle/hle_fs.c ../hle.h ../dm.h ../game/game.c $(GEN) ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wno-unused-function -DDM_TEST_FS_NO_REPREP=1 -I.. -o $@ t_fs.c t_fs_stub.c ../game/game.c $(GEN) ../runtime/plat_apple.c
 $(B)/t_fs_kill: t_fs_kill.c t_fs_stub.c ../hle/hle_fs.c ../hle.h ../dm.h ../game/game.c $(GEN) ../runtime/plat_apple.c | $(B)
@@ -1034,12 +1010,6 @@ $(B)/t_coolstart: t_coolstart.c ../coolstart.h | $(B)
 	clang -O1 -Wall -Werror -I.. -o $@ t_coolstart.c
 $(B)/t_coolstart_onelook: t_coolstart.c ../coolstart.h | $(B)
 	clang -O1 -Wall -Werror -I.. -DDM_TEST_COOL_ONE_LOOK -o $@ t_coolstart.c
-$(B)/t_romfs_parts: t_romfs_parts.c ../runtime/romfs_parts.c ../romfs_parts.h ../../tools/romfs_parts.py | $(B)
-	clang -O1 -Wall -Werror -I.. -o $@ t_romfs_parts.c
-$(B)/t_romfs_parts_nosha: t_romfs_parts.c ../runtime/romfs_parts.c ../romfs_parts.h | $(B)
-	clang -O1 -Wall -Werror -I.. -DDM_TEST_PARTS_NO_SHA -o $@ t_romfs_parts.c
-$(B)/t_romfs_parts_anypath: t_romfs_parts.c ../runtime/romfs_parts.c ../romfs_parts.h | $(B)
-	clang -O1 -Wall -Werror -I.. -DDM_TEST_PARTS_ANY_PATH -o $@ t_romfs_parts.c
 $(B)/t_guest_as: t_guest_as.c ../guest_as.h ../runtime/plat_apple.c | $(B)
 	clang -O1 -Wall -Werror -I.. -o $@ t_guest_as.c ../runtime/plat_apple.c
 $(B)/t_guest_as_nolimit: t_guest_as.c ../guest_as.h ../runtime/plat_apple.c | $(B)
@@ -1058,8 +1028,6 @@ $(B)/t_romfs_validate: t_romfs_validate.c ../runtime/romfs_validate.c ../romfs_v
 	clang -O1 -Wall -Wno-unused-function -I.. -o $@ t_romfs_validate.c ../runtime/romfs_validate.c
 $(B)/t_romfs_validate_nokeys: t_romfs_validate.c ../runtime/romfs_validate.c ../romfs_validate.h | $(B)
 	clang -O1 -Wall -Wno-unused-function -DDM_TEST_ROMFS_MARKER_NO_KEYS -I.. -o $@ t_romfs_validate.c ../runtime/romfs_validate.c
-$(B)/t_romfs_validate_anyorig: t_romfs_validate.c ../runtime/romfs_validate.c ../romfs_validate.h | $(B)
-	clang -O1 -Wall -Wno-unused-function -DDM_TEST_OVERLAY_ANY_ORIGINAL -I.. -o $@ t_romfs_validate.c ../runtime/romfs_validate.c
 $(B)/t_rundiag: t_rundiag.c ../rundiag.h | $(B)
 	clang -O1 -Wall -Werror -I.. -o $@ t_rundiag.c
 $(B)/t_rundiag_nokeep: t_rundiag.c ../rundiag.h | $(B)

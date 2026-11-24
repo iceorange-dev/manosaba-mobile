@@ -54,7 +54,7 @@ int main(void) {
     if (setxattr(p, FS_GUEST_NAME, "B.txt", 5, 0, XATTR_NOFOLLOW)) { perror("setxattr"); return 2; }
     snprintf(p, sizeof p, "%s/a", rom); mkdir(p, 0755); snprintf(p, sizeof p, "%s/a/b", rom); mkdir(p, 0755);
     snprintf(p, sizeof p, "%s/a/b/c", rom); mkdir(p, 0755); snprintf(p, sizeof p, "%s/a/b/c/deep.txt", rom); put(p, "deep");
-    setenv("DM_ROMFS", rom, 1); unsetenv("DM_ROMFS_OVERLAY");
+    setenv("DM_ROMFS", rom, 1);
     CHECK(h_fs_MountRom("rom", NULL, 0) == RES_OK, "mount the RomFS");
 
     printf("1 lookups in a large directory\n");

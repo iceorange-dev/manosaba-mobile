@@ -43,7 +43,6 @@ typedef struct { const char *name; void *fn; const char *why; int optional; } hl
 
 // Operation mode (0 handheld / 1 docked): owned by hle_oe.c, and the hid controller style follows it; the front end can switch it at runtime
 int dm_opmode(void);
-int dm_overlay_file(const char *rel, char *out, size_t n);   // File in the overlay: DM_ROMFS_OVERLAY may have several layers (colon-separated, earlier ones take priority); look for <layer>/<rel> layer by layer, and on a hit write it to out and return 1 (hle_fs.c)
 void dm_set_opmode(int m);          // On change, push notification 30 / 31 according to the switches the game has turned on
 // Focus (1 foreground / 2 focus lost / 3 background): called by the front end on lifecycle changes; a change pushes notification 15
 void dm_focus_set(int st);

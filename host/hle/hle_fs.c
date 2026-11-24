@@ -1,5 +1,5 @@
 // nn::fs: on the real device it goes through the fsp-srv service; the host connects directly to the Mac file system. Mount name → host directory:
-//   rom   → $DM_ROMFS (read-only; DM_ROMFS_OVERLAY layers take priority, see host_path)
+//   rom   → $DM_ROMFS (read-only)
 //   save  → $DM_SAVE (must be set; transactional: the game works in <save>.work, Commit swaps it in atomically)
 //   temp  → $DM_TEMP (default $DM_ROOT/run/platform/temp)
 //   cache storage <index> → $DM_CACHE/<index> (default $DM_ROOT/run/platform/cache; not transactional, see MountCacheStorage)
@@ -35,7 +35,7 @@ _Static_assert(sizeof(DirectoryEntry) == 0x310, "DirectoryEntry layout");
 // all game reads and writes happen in the working directory; Commit = clonefile(work → <commit>.new), then renamex_np(RENAME_SWAP) swaps it atomically with commit, then the swapped-out old version is deleted.
 // Killed at any moment, commit is either the old version or the new version, never half-written / a mix of old and new; the next mount discards leftover .work / .new.
 // fixed: the contents never change while the process runs (RomFS), so directory name indexes may be kept (path_component)
-typedef struct { char name[32]; char dir[1024]; char overlay[4096]; char commit[1024]; int ro, fixed; } mount_t;
+typedef struct { char name[32]; char dir[1024]; char commit[1024]; int ro, fixed; } mount_t;
 static mount_t g_mnt[MAX_MOUNT];   // commit non-empty = transactional save mount
 static int g_nmnt;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -89,9 +89,7 @@ static Result mount_ex(const char *name, const char *dir, int ro, int txn) {
         if (!strcmp(g_mnt[i].name, name)) { pthread_mutex_unlock(&g_lock); return RES_OK; }
     if (g_nmnt >= MAX_MOUNT) die("mount table full");
     strlcpy(g_mnt[g_nmnt].name, name, sizeof g_mnt[0].name);
-    g_mnt[g_nmnt].ro = ro; g_mnt[g_nmnt].fixed = 0; g_mnt[g_nmnt].overlay[0] = 0; g_mnt[g_nmnt].commit[0] = 0;
-    if (!strcmp(name, "rom") && getenv("DM_ROMFS_OVERLAY"))
-        strlcpy(g_mnt[g_nmnt].overlay, getenv("DM_ROMFS_OVERLAY"), sizeof g_mnt[0].overlay);
+    g_mnt[g_nmnt].ro = ro; g_mnt[g_nmnt].fixed = 0; g_mnt[g_nmnt].commit[0] = 0;
     // The transaction's work directory cannot be set up (leftovers that cannot be removed, a failed clone: real on a full disk): do not exit; mount
     // the committed directory read-only instead. The save reads as usual, writes fail, commits are no-ops, the committed version stays intact
     int txn_err = 0;
@@ -113,7 +111,7 @@ static Result mount_ex(const char *name, const char *dir, int ro, int txn) {
     pthread_mutex_unlock(&g_lock);
     if (txn_err) front_save_failed(txn_err);
     if (!ro && !txn) mkdir(dir, 0755);
-    LOG("fs mount %s: → %s%s%s", name, txn ? g_mnt[g_nmnt - 1].dir : dir, ro || txn_err ? " (read-only)" : txn ? " (transactional save: working directory, Commit swaps it in atomically)" : "", g_mnt[g_nmnt - 1].overlay[0] ? " (overlay first)" : "");
+    LOG("fs mount %s: → %s%s", name, txn ? g_mnt[g_nmnt - 1].dir : dir, ro || txn_err ? " (read-only)" : txn ? " (transactional save: working directory, Commit swaps it in atomically)" : "");
     return RES_OK;
 }
 static Result mount(const char *name, const char *dir, int ro) { return mount_ex(name, dir, ro, 0); }
@@ -206,67 +204,6 @@ static int path_component(char *parent, size_t n, const char *name, int create, 
     if (len + k + 2 > n) { errno = ENAMETOOLONG; return 0; }
     parent[len] = '/'; memcpy(parent + len + 1, physical, k + 1); return 1;
 }
-static int root_path(const char *root, const char *rest, char *out, size_t n) {
-    strlcpy(out, root, n);
-    while (*rest) {
-        while (*rest == '/') rest++;
-        if (!*rest) break;
-        const char *end = strchr(rest, '/'); if (!end) end = rest + strlen(rest);
-        size_t k = end - rest; char part[0x301];
-        if (k >= sizeof part) { errno = ENAMETOOLONG; return 0; }
-        memcpy(part, rest, k); part[k] = 0;
-        if (!strcmp(part, "..")) { errno = ENOENT; return 0; }
-        if (strcmp(part, ".") && !path_component(out, n, part, 0, 1)) return 0;   // only the RomFS mount and its overlay roots come here (rom_overlay_path, dir_snapshot)
-        rest = end;
-    }
-    return 1;
-}
-// Files in the overlay that the host itself reads (marker files, sidecar tables, data archives) are all looked up here. DM_ROMFS_OVERLAY may have
-// several layers, colon-separated, earlier ones taking priority; old devices have two layers,
-// "in-bundle romfs_overlay_astc:Legacy Device Pack directory"; treating the whole string as one directory when building file names finds nothing at all
-// on old devices.
-int dm_overlay_file(const char *rel, char *out, size_t n) {
-    const char *ov = getenv("DM_ROMFS_OVERLAY");
-    for (const char *p = ov ? ov : ""; *p;) {
-        size_t l = strcspn(p, ":");
-        if (l && snprintf(out, n, "%.*s/%s", (int)l, p, rel) < (int)n && !access(out, R_OK)) return 1;
-        p += l; if (*p == ':') p++;
-    }
-    if (n) out[0] = 0;
-    return 0;
-}
-// RomFS files one host file serves whatever the layers hold (mods.c, plan item 164: a mod's copy of a file the game's own overlay patches, when the
-// overlay's file or a merge of the two is the one to use). Set at boot, before the game runs; the path as the RomFS spells it, without a leading /
-#ifndef DM_TEST_ROM_NO_PIN
-#define DM_TEST_ROM_NO_PIN 0
-#endif
-static struct { char rel[512], host[1024]; } g_pin[16];
-static int g_npin;
-void dm_rom_pin(const char *rel, const char *host) {
-    while (*rel == '/') rel++;
-    for (int i = 0; i < g_npin; i++) if (!strcmp(g_pin[i].rel, rel)) { strlcpy(g_pin[i].host, host, sizeof g_pin[i].host); return; }
-    if (g_npin == 16) { LOG("[red] rom pin: more than 16 files, %s left to the layers", rel); return; }
-    strlcpy(g_pin[g_npin].rel, rel, sizeof g_pin[0].rel); strlcpy(g_pin[g_npin].host, host, sizeof g_pin[0].host); g_npin++;
-}
-static int rom_overlay_path(const mount_t *m, const char *rest, char *out, size_t n) {
-    if (g_npin && !DM_TEST_ROM_NO_PIN) {   // (the macro: negative control of t_fs only, the pins ignored)
-        const char *r = rest; while (*r == '/') r++;
-        for (int i = 0; i < g_npin; i++) if (!strcmp(g_pin[i].rel, r)) { strlcpy(out, g_pin[i].host, n); return 1; }
-    }
-    char *roots = strdup(m->overlay);
-    if (!roots) die("rom overlay: path allocation failed");
-    char *save = NULL;
-    for (char *root = strtok_r(roots, ":", &save); root; root = strtok_r(NULL, ":", &save)) {
-        char candidate[1024];
-        if (root_path(root, rest, candidate, sizeof candidate) && !access(candidate, F_OK)) {
-            strlcpy(out, candidate, n); free(roots); return 1;
-        }
-    }
-    int found = root_path(m->dir, rest, out, n) && !access(out, F_OK);
-    free(roots);
-    if (found) return 1;
-    errno = ENOENT; return 0;
-}
 // Two spellings Horizon takes (plan item 64k; armyja's nxnative-aa-port, MIT, written anew): a separator before the mount name (Unity's .NET path
 // code, Path.GetFullPath with the working directory "/", gives "/rom:/…") and '\' between components (Ace Attorney opens "savedata:\systemdata")
 static const char *path_lead(const char *p) {
@@ -296,7 +233,6 @@ static int host_path_ex(const char *p, char *out, size_t n, int *ro, int create)
         if (ro) *ro = g_mnt[i].ro;
         const char *rest; char fwd[0x400];
         if (!path_fwd(c + 1, fwd, sizeof fwd, &rest)) return 0;
-        if (g_mnt[i].overlay[0] && !create) return rom_overlay_path(&g_mnt[i], rest, out, n);
         strlcpy(out, g_mnt[i].dir, n);
         while (*rest) {
             while (*rest == '/') rest++;
@@ -314,7 +250,7 @@ static int host_path_ex(const char *p, char *out, size_t n, int *ro, int create)
     }
     errno = ENOENT; return 0;
 }
-// For host code that opens a guest file itself (the movie extractor's SetDataSource(path)): read-only resolution through the mount table, overlays included
+// For host code that opens a guest file itself (the movie extractor's SetDataSource(path)): read-only resolution through the mount table
 int dm_fs_host_file(const char *path, char *out, size_t n) { PATH_LOCK(); return host_path_ex(path, out, n, NULL, 0); }
 static int set_guest_name(const char *hp, const char *path) {
     const char *end = path + strlen(path); while (end > path && end[-1] == '/') end--;
@@ -350,7 +286,6 @@ HLE_FORCE("_ZN2nn2fs8MountRomEPKcPvm", "fsp-srv; rom → host RomFS directory", 
         PATH_LOCK();
         for (int i = 0; i < g_nmnt; i++) if (!strcmp(g_mnt[i].name, name)) {
             g_mnt[i].fixed = 1;
-            if (getenv("DM_ROMFS_OVERLAY")) strlcpy(g_mnt[i].overlay, getenv("DM_ROMFS_OVERLAY"), sizeof g_mnt[i].overlay);
             break;
         }
     }
@@ -579,70 +514,16 @@ HLE_FORCE("_ZN2nn2fs12GetEntryTypeEPNS0_18DirectoryEntryTypeEPKc", "fsp-srv → 
 }
 
 // ---------- Directories ----------
-// An overlaid directory is listed once, at open: every root's names merged (the first root to name an entry wins), kept compact (the names in one
-// buffer, an offset, type and size per entry; DirectoryEntry is 784 bytes and Tears of the Kingdom has directories of 75,940 entries) and handed out
-// as DirectoryEntry when read. The listing used to stop at 2048 names without a word, with a quadratic duplicate check
-typedef struct { uint32_t name; int8_t type; int64_t size; } dsnap_t;
-typedef struct { DIR *d; char path[1024]; DIR *od; char opath[1024]; dsnap_t *snap; char *snames; int64_t nsnap, psnap; int mode; } dirh_t;
-static uint32_t name_hash(const char *s) { uint32_t h = 2166136261u; while (*s) h = (h ^ (uint8_t)*s++) * 16777619u; return h; }
-static void dir_snapshot(dirh_t *h, const mount_t *m, const char *rest) {
-    char *roots = strdup(m->overlay);
-    const char **all = calloc(65, sizeof *all);
-    char *parent = malloc(1024), *guest = malloc(0x301), *rel = malloc(2048), *resolved = malloc(1024);
-    size_t ncap = 1024, buf_cap = 1 << 16, buf_n = 0, hcap = 2048; int64_t nn = 0;
-    dsnap_t *ent = malloc(ncap * sizeof *ent); char *buf = malloc(buf_cap); int64_t *set = malloc(hcap * sizeof *set);
-    if (!roots || !all || !parent || !guest || !rel || !resolved || !ent || !buf || !set) die("rom overlay: directory snapshot allocation failed");
-    for (size_t i = 0; i < hcap; i++) set[i] = -1;
-    int nr = 0;
-    all[nr++] = m->dir;
-    char *save = NULL;
-    for (char *root = strtok_r(roots, ":", &save); root && nr < 65; root = strtok_r(NULL, ":", &save)) all[nr++] = root;
-    for (int ri = nr - 1; ri >= 0; ri--) {
-        if (!root_path(all[ri], rest, parent, 1024)) continue;
-        DIR *x = opendir(parent); if (!x) continue;
-        struct dirent *e;
-        while ((e = readdir(x))) {
-            if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
-            if (!guest_name(parent, e->d_name, guest, 0x301)) continue;
-            size_t k = name_hash(guest) & (hcap - 1); int dup = 0;
-            for (; set[k] >= 0; k = (k + 1) & (hcap - 1)) if (!strcmp(buf + ent[set[k]].name, guest)) { dup = 1; break; }
-            if (dup) continue;
-            size_t len = strlen(guest) + 1;
-            if (buf_n + len > buf_cap) { while (buf_n + len > buf_cap) buf_cap *= 2; if (!(buf = realloc(buf, buf_cap))) die("rom overlay: directory snapshot allocation failed"); }
-            if ((size_t)nn == ncap) { ncap *= 2; if (!(ent = realloc(ent, ncap * sizeof *ent))) die("rom overlay: directory snapshot allocation failed"); }
-            memcpy(buf + buf_n, guest, len); ent[nn] = (dsnap_t){.name = (uint32_t)buf_n}; buf_n += len; set[k] = nn++;
-            if ((size_t)nn * 2 > hcap) {   // keep the set at most half full
-                free(set); hcap *= 2; if (!(set = malloc(hcap * sizeof *set))) die("rom overlay: directory snapshot allocation failed");
-                for (size_t i = 0; i < hcap; i++) set[i] = -1;
-                for (int64_t j = 0; j < nn; j++) { size_t q = name_hash(buf + ent[j].name) & (hcap - 1); while (set[q] >= 0) q = (q + 1) & (hcap - 1); set[q] = j; }
-            }
-        }
-        closedir(x);
-    }
-    for (int64_t j = 0; j < nn; j++) {
-        snprintf(rel, 2048, "%s/%s", rest, buf + ent[j].name);
-        if (!rom_overlay_path(m, rel, resolved, 1024)) continue;
-        struct stat st;
-        if (!stat(resolved, &st)) { ent[j].type = S_ISDIR(st.st_mode) ? ENT_DIR : ENT_FILE; ent[j].size = S_ISDIR(st.st_mode) ? 0 : st.st_size; }
-    }
-    h->snap = ent; h->snames = buf; h->nsnap = nn;
-    free(set); free(resolved); free(rel); free(guest); free(parent); free(all); free(roots);
-}
+typedef struct { DIR *d; char path[1024]; int mode; } dirh_t;
 HLE_FORCE("_ZN2nn2fs13OpenDirectoryEPNS0_15DirectoryHandleEPKci", "fsp-srv → opendir(3)", Result, h_fs_OpenDirectory, uint64_t *out, const char *path, int mode) {
     HP(path); DIR *d = opendir(hp);
     if (!d) return err_res("opendir", hp);
     dirh_t *h = calloc(1, sizeof *h); h->d = d; strlcpy(h->path, hp, sizeof h->path); h->mode = mode;
-    const char *c = strchr(path, ':');
-    if (c) for (int i = 0; i < g_nmnt; i++) if (g_mnt[i].overlay[0] && strlen(g_mnt[i].name) == (size_t)(c - path) && !strncmp(g_mnt[i].name, path, (size_t)(c - path))) {
-        dir_snapshot(h, &g_mnt[i], c + 1); break;
-    }
     *out = (uint64_t)h; return RES_OK;
 }
 HLE_FORCE("_ZN2nn2fs13ReadDirectoryEPlPNS0_14DirectoryEntryENS0_15DirectoryHandleEl", "fsp-srv → readdir(3)", Result, h_fs_ReadDirectory, int64_t *count, DirectoryEntry *ents, uint64_t hh, int64_t max) {
     if (!hh) { *count = 0; return RES_FAIL; }
     PATH_LOCK(); dirh_t *h = (dirh_t *)hh; int64_t n = 0; struct dirent *e;
-    if (h->snap) { while (n < max && h->psnap < h->nsnap) { const dsnap_t *src = &h->snap[h->psnap++]; if (!(h->mode & (src->type == ENT_DIR ? DIRMODE_DIR : DIRMODE_FILE))) continue;
-        memset(&ents[n], 0, sizeof ents[n]); strlcpy(ents[n].name, h->snames + src->name, sizeof ents[n].name); ents[n].type = src->type; ents[n].size = src->size; n++; } *count = n; return RES_OK; }
     int dfd = dirfd(h->d);
     while (n < max && (e = readdir(h->d))) {
         if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
@@ -660,7 +541,7 @@ HLE_FORCE("_ZN2nn2fs13ReadDirectoryEPlPNS0_14DirectoryEntryENS0_15DirectoryHandl
 }
 HLE_FORCE("_ZN2nn2fs14CloseDirectoryENS0_15DirectoryHandleE", "fsp-srv → closedir(3)", void, h_fs_CloseDirectory, uint64_t hh) {
     if (!hh) return;   // the game also closes after a failed open (handle 0)
-    dirh_t *h = (dirh_t *)hh; closedir(h->d); if (h->od) closedir(h->od); free(h->snap); free(h->snames); free(h);
+    dirh_t *h = (dirh_t *)hh; closedir(h->d); free(h);
 }
 
 // ---------- APIs other games use (Unity: RAM disk, read-without-count, directory counts, add-on content probing ...) ----------
@@ -812,7 +693,6 @@ HLE_FORCE_OPT("_ZN2nn2fs16GetFreeSpaceSizeEPlPKc", "fsp-srv → statvfs(3): free
 }
 HLE_FORCE_OPT("_ZN2nn2fs22GetDirectoryEntryCountEPlNS0_15DirectoryHandleE", "fsp-srv: directory entries counted by the open mode (as ReadDirectory counts them)", Result, h_fs_DirCount, int64_t *out, uint64_t hh) {
     PATH_LOCK(); dirh_t *h = (dirh_t *)hh; int64_t n = 0;
-    if (h->snap) { for (int64_t i = 0; i < h->nsnap; i++) if (h->mode & (h->snap[i].type == ENT_DIR ? DIRMODE_DIR : DIRMODE_FILE)) n++; *out = n; return RES_OK; }
     DIR *d = opendir(h->path); if (!d) return err_res("opendir", h->path);
     struct dirent *e;
     while ((e = readdir(d))) {

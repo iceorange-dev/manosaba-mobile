@@ -17,5 +17,5 @@ with tempfile.TemporaryDirectory() as d:
     check('signed ad hoc: the signature carries the increased memory limit, nothing else', rc == 0 and got == {'com.apple.developer.kernel.increased-memory-limit': True}, str(got))
 check('the size note: nothing to say at 3 GB', s.size_note(3_000_000_000) == '3.00 GB')
 n = s.size_note(16_600_000_000)
-check('the size note above 4 GiB: ZIP64, the 16.6 GB refusal and the RomFS parts', 'ZIP64' in n and '16.6 GB' in n and 'romfs_parts.py' in n, n)
+check('the size note above 4 GiB: ZIP64, the 16.6 GB refusal and the other ways in', 'ZIP64' in n and '16.6 GB' in n and 'push-data' in n, n)
 print(f't_ipa_sign: {total} checks, {fails} failed'); sys.exit(fails != 0)

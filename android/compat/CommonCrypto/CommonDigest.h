@@ -1,4 +1,4 @@
-// Android build (plan item 301c): the SHA-256 calls of CommonCrypto the host makes (mods.c, romfs_parts.c, romfs_validate.c), on sha256.c (FIPS 180-4,
+// Android build (plan item 301c): the SHA-256 calls of CommonCrypto the host makes (runtime/loader.c, the graphics layer's shader keys), on sha256.c (FIPS 180-4,
 // written here; checked against the standard's vectors by android/tests/t_sha256.c).
 #pragma once
 #include <stddef.h>

@@ -42,7 +42,6 @@ SRC = \
 	runtime/options.c \
 	runtime/plat_apple.c \
 	front/procon_mac.m \
-	runtime/romfs_parts.c \
 	runtime/romfs_validate.c \
 	diag/sdktest.c \
 	diag/thermal.m \

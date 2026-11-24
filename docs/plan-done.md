@@ -69,7 +69,6 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
   prologue 2,314 MB against 3,545 MB decompressed and 1,984 MB with BC.
 - 62c3 · b55 · BC textures the GPU writes, decoded after the pass on GPUs without BC (Apple's Metal Feature Set Tables of 2026-05-21: every
   iPhone with an A14, A15 or A16); BC6H / BC7 still left out.
-- 62e · b54 · RomFS as 1 GiB parts with an index (`tools/romfs_parts.py`, `romfs.dmri`), unpacked at the next launch.
 - 62f · b54 · `maxBufferLength` and the recommended working set on the "Metal device" line (mush8 PR #3); `DM_COOL_START=nominal` (or `fair`)
   waits for that thermal state (T5eng: the same scene at 60 fps on a cool phone, 30 on a hot one).
 - 62i · b64 · after the first device run: the game data located off the main thread; `DM_CACHE` in Library/Caches on iOS.
@@ -519,7 +518,8 @@ licence. The long text these records were written from: `git show e683f23:DEVELO
 - 326 · b186 · the three draws a frame on Great Sky Island that still got copies and a split: `gfx/tools/dmsh_fetch.py` variant made no
   readable-tile version of a fragment shader with more than four colour outputs or a depth output (356 in all); now up to eight colours and a
   depth output kept (`gfx/nvn/nvn_refl.h` fo_color 8). Chain 5a7de6a8fef9. The Mac: no copy, 315 → 251 MB loaded and 304 → 241 stored a frame.
-- 328 · part (b196-b205) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
+- 328 · part (b196-b206) · Tears of the Kingdom's support removed (the user, 2026-11-24; the tag `totk-last` is the last commit with it):
   `games/totk`, `engines/bnsh`, the hooks only it implemented with what they drove (the frame step, uncapped pacing, ProMotion's 120 Hz, the
   movies' hold), sead's heaps, eight profile fields, mods, cheats, pchtxt, the on-screen touch pad, nn::nfp and nn::codec, VP8 / VP9 movies
-  with libvpx (329; the game's clips are H.264 and AAC in MP4), the virtual cores, the translation thread. Left: plan.md.
+  with libvpx (329; the game's clips are H.264 and AAC in MP4), the virtual cores, the translation thread, the
+  RomFS overlay and the RomFS parts. Left: plan.md.
